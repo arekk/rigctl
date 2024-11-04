@@ -1,0 +1,54 @@
+object FormDebug: TFormDebug
+  Left = 734
+  Height = 529
+  Top = 175
+  Width = 435
+  Caption = 'Debug'
+  ClientHeight = 529
+  ClientWidth = 435
+  OnClose = FormClose
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  OnShow = FormShow
+  LCLVersion = '3.7.0.0'
+  object Memo1: TMemo
+    Left = 0
+    Height = 495
+    Top = 0
+    Width = 435
+    Align = alClient
+    Lines.Strings = (
+      ''
+    )
+    ReadOnly = True
+    ScrollBars = ssVertical
+    TabOrder = 0
+  end
+  object Panel1: TPanel
+    Left = 0
+    Height = 34
+    Top = 495
+    Width = 435
+    Align = alBottom
+    ClientHeight = 34
+    ClientWidth = 435
+    TabOrder = 1
+    object CheckBox1: TCheckBox
+      Left = 368
+      Height = 18
+      Top = 8
+      Width = 123
+      Caption = 'debug messages'
+      TabOrder = 0
+    end
+    object Button1: TButton
+      Left = 288
+      Height = 32
+      Top = 0
+      Width = 72
+      Caption = 'clear'
+      TabOrder = 1
+      OnClick = Button1Click
+    end
+  end
+end
