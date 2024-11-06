@@ -31,6 +31,7 @@ type
     MenuItem6: TMenuItem;
     procedure ConfigurationFormClose(Sender: TObject; var CloseAction: TCloseAction);
     procedure MenuItem2Click(Sender: TObject);
+    procedure MenuItem4Click(Sender: TObject);
     procedure MenuItem5Click(Sender: TObject);
     procedure MenuItem6Click(Sender: TObject);
   private
@@ -50,8 +51,13 @@ implementation
 
 procedure TFormInit.MenuItem2Click(Sender: TObject);
 begin
-  Form3.OnClose:=@ConfigurationFormClose;
-  Form3.Show;
+  FormSettings.OnClose:=@ConfigurationFormClose;
+  FormSettings.Show;
+end;
+
+procedure TFormInit.MenuItem4Click(Sender: TObject);
+begin
+
 end;
 
 procedure TFormInit.ConfigurationFormClose(Sender: TObject; var CloseAction: TCloseAction);
@@ -65,7 +71,7 @@ begin
   FormSpert.ReloadConfiguration;
   FormRig.ReloadConfiguration;
 
-  Form3.OnClose:=nil;
+  FormSettings.OnClose:=nil;
 end;
 
 procedure TFormInit.MenuItem5Click(Sender: TObject);

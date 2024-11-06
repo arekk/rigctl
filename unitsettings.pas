@@ -29,12 +29,6 @@ type
     flrigServerEnabled: Boolean;
     flrigServerPort: Integer;
 
-    {
-    flrigEnabled: Boolean;
-    flrigRpcHostname: String;
-    flrigRpcPort: Integer;
-    }
-
     TrxTunePower: Integer;
     AtuOffOnBandChange: Boolean;
 
@@ -71,7 +65,9 @@ implementation
 
 constructor TConfiguration.Create(applicationLocation: String);
 begin
-  iniPath:=ExtractFilePath(applicationLocation) + 'rig.ini';
+  iniPath:=ExtractFilePath(applicationLocation) + 'rshackctr.ini';
+  if (not FileExists(iniPath)) then FileCreate(iniPath);
+
   iniMutex:=TCriticalSection.Create;
 end;
 
@@ -82,16 +78,16 @@ begin
   try
     iniFile:=TIniFile.Create(iniPath);
 
-    Settings.Debug:=iniFile.ReadBool('Generic', 'Debug', false);
+    Settings.Debug:=iniFile.ReadBool('Generic', 'Debug', True);
 
     Settings.spertEnabled:=iniFile.ReadBool('SPert', 'Enabled', true);
-    Settings.spertPort:=iniFile.ReadString('SPert', 'Port', '');
+    Settings.spertPort:=iniFile.ReadString('SPert', 'Port', 'AUTO');
     Settings.spertPortRate:=iniFile.ReadInteger('SPert', 'PortRate', 9600);
     Settings.spertPool:=iniFile.ReadInteger('SPert', 'Pool', 200);
     Settings.spertStartupFan:=iniFile.ReadInteger('SPert', 'DefaultFan', 0);
 
     Settings.trxEnabled:=iniFile.ReadBool('FTdx10', 'Enabled', true);
-    Settings.trxPort:=iniFile.ReadString('FTdx10', 'Port', '');
+    Settings.trxPort:=iniFile.ReadString('FTdx10', 'Port', 'AUTO');
     Settings.trxPortRate:=iniFile.ReadInteger('FTdx10', 'PortRate', 38400);
     Settings.trxPool:=iniFile.ReadInteger('FTdx10', 'Pool', 200);
 

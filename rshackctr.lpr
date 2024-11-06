@@ -1,4 +1,4 @@
-program project1;
+program RadioShackCtl;
 
 {$mode objfpc}{$H+}
 
@@ -19,23 +19,21 @@ uses
   UnitFormRig,
   UnitFormDebug,
   UnitFormSettings,
-  UnitFormInit;
+  UnitFormInit, UnitFlrigServer, UnitRig;
 
 {$R *.res}
 
 begin
   RequireDerivedFormResource:=True;
-  Application.Title:='RigCtl';
+  Application.Title:='RadioShackCtl';
   Application.Scaled:=True;
   Application.Initialize;
 
-  { order is important }
   Application.CreateForm(TFormInit, FormInit);
   Application.CreateForm(TFormDebug, FormDebug);
   Application.CreateForm(TFormRig, FormRig);
   Application.CreateForm(TFormSpert, FormSpert);
-  Application.CreateForm(TForm3, Form3);
+  Application.CreateForm(TFormSettings, FormSettings);
 
   Application.Run;
 end.
-

@@ -16,6 +16,7 @@ uses
   StdCtrls,
   ExtCtrls,
   LCLType,
+  LCLIntf,
   ComCtrls,
   Buttons,
   StrUtils,
@@ -62,6 +63,7 @@ type
     Timer1: TTimer;
     TrackBar1: TTrackBar;
     TrackBarDgain: TTrackBar;
+    procedure ReloadConfiguration;
     procedure BitBtnDNFClick(Sender: TObject);
     procedure BitBtnDNRClick(Sender: TObject);
     procedure BitBtnVOXClick(Sender: TObject);
@@ -85,7 +87,6 @@ type
     procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure FormShow(Sender: TObject);
     procedure Timer1Timer(Sender: TObject);
-    procedure ReloadConfiguration;
     procedure TrackBar1Change(Sender: TObject);
     procedure TrackBarDgainChange(Sender: TObject);
   private
@@ -97,6 +98,7 @@ type
     FlRigServer: TFlrigServer;
     picBallGreen: TPicture;
     picBallBlue: TPicture;
+    vfoStep: Integer;
   end;
 
 var
@@ -156,24 +158,13 @@ begin
 end;
 
 procedure TFormRig.FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
-var
-  newFrequency: LongWord;
 begin
-  newFrequency:=0;
   case Key of
-    VK_LEFT: newFrequency:=(Round(Rig.state.vfoA_frq / 10) * 10) - 10;
-    VK_RIGHT: newFrequency:=(Round(Rig.state.vfoA_frq / 10) * 10) + 10;
-    VK_P: if (Rig.state.pwr >= 5) and (Rig.state.pwr <= 100) then Rig.SetPwr(Rig.state.pwr + 1);
-    VK_L: if (Rig.state.pwr >= 5) and (Rig.state.pwr <= 100) then Rig.SetPwr(Rig.state.pwr - 1);
-    VK_O: if (Rig.state.drPortGain >= 0) and (Rig.state.drPortGain <= 100) then Rig.SetdrPortGain(Rig.state.drPortGain + 1);
-    VK_K: if (Rig.state.drPortGain >= 0) and (Rig.state.drPortGain <= 100) then Rig.SetdrPortGain(Rig.state.drPortGain - 1);
+    VK_P: if (Rig.state.pwr >= 5) and (Rig.state.pwr <= 100) then Rig.SetPwr(Rig.state.pwr + 5);
+    VK_L: if (Rig.state.pwr >= 5) and (Rig.state.pwr <= 100) then Rig.SetPwr(Rig.state.pwr - 5);
+    VK_O: if (Rig.state.drPortGain > 0) and (Rig.state.drPortGain <= 100) then Rig.SetdrPortGain(Rig.state.drPortGain + 1);
+    VK_K: if (Rig.state.drPortGain > 0) and (Rig.state.drPortGain <= 100) then Rig.SetdrPortGain(Rig.state.drPortGain - 1);
     VK_SPACE: Rig.toggleVox;
-  end;
-
-  if newFrequency > 0 then begin
-    PanelVfoFrq.Caption:=RigFrequencyToCaption(newFrequency);
-    PanelVfoFrq.Update;
-    Rig.SetVfoA_frq(newFrequency);
   end;
 end;
 
@@ -287,7 +278,7 @@ procedure TFormRig.Timer1Timer(Sender: TObject);
 begin
   { rig is connected }
   if Rig.state.active then
-   begin
+  begin
      GroupBox1.Enabled:=True;
      GroupBox2.Enabled:=True;
      GroupBox3.Enabled:=True;

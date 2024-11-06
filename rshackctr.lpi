@@ -4,13 +4,13 @@
     <Version Value="12"/>
     <General>
       <SessionStorage Value="InProjectDir"/>
-      <Title Value="RigCtl"/>
+      <Title Value="RadioShackCtl"/>
       <Scaled Value="True"/>
       <ResourceType Value="res"/>
       <UseXPManifest Value="True"/>
       <XPManifest>
         <DpiAware Value="True"/>
-        <TextName Value="SO9W"/>
+        <TextName Value=""/>
         <TextDesc Value="SPert 1000 + FTdx10"/>
       </XPManifest>
       <Icon Value="0"/>
@@ -33,27 +33,14 @@
         <PackageName Value="TurboPowerIPro"/>
       </Item>
       <Item>
-        <PackageName Value="pl_Cindy"/>
-      </Item>
-      <Item>
-        <PackageName Value="TAChartLazarusPkg"/>
-      </Item>
-      <Item>
         <PackageName Value="LCL"/>
       </Item>
     </RequiredPackages>
     <Units>
       <Unit>
-        <Filename Value="project1.lpr"/>
+        <Filename Value="rshackctr.lpr"/>
         <IsPartOfProject Value="True"/>
-      </Unit>
-      <Unit>
-        <Filename Value="unit1.pas"/>
-        <IsPartOfProject Value="True"/>
-        <ComponentName Value="Form1"/>
-        <HasResources Value="True"/>
-        <ResourceBaseClass Value="Form"/>
-        <UnitName Value="Unit1"/>
+        <UnitName Value="RadioShackCtl"/>
       </Unit>
       <Unit>
         <Filename Value="lazsynaser.pas"/>
@@ -71,35 +58,9 @@
         <UnitName Value="LazSynaUtil"/>
       </Unit>
       <Unit>
-        <Filename Value="unit2.pas"/>
-        <IsPartOfProject Value="True"/>
-        <ComponentName Value="Form2"/>
-        <HasResources Value="True"/>
-        <ResourceBaseClass Value="Form"/>
-        <UnitName Value="Unit2"/>
-      </Unit>
-      <Unit>
-        <Filename Value="unit3.pas"/>
-        <IsPartOfProject Value="True"/>
-        <ComponentName Value="Form3"/>
-        <HasResources Value="True"/>
-        <ResourceBaseClass Value="Form"/>
-        <UnitName Value="UnitFormSettings"/>
-      </Unit>
-      <Unit>
         <Filename Value="unitsettings.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="UnitSettings"/>
-      </Unit>
-      <Unit>
-        <Filename Value="unit4.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="UnitFlrigServer"/>
-      </Unit>
-      <Unit>
-        <Filename Value="unittrx.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="UnitTrx"/>
       </Unit>
       <Unit>
         <Filename Value="unitformrig.pas"/>
@@ -122,12 +83,46 @@
         <ResourceBaseClass Value="Form"/>
         <UnitName Value="UnitFormInit"/>
       </Unit>
+      <Unit>
+        <Filename Value="unitflrigserver.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="UnitFlrigServer"/>
+      </Unit>
+      <Unit>
+        <Filename Value="unitformsettings.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="FormSettings"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="UnitFormSettings"/>
+      </Unit>
+      <Unit>
+        <Filename Value="unitformdebug.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="FormDebug"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="UnitFormDebug"/>
+      </Unit>
+      <Unit>
+        <Filename Value="unitformspert.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="FormSpert"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="UnitFormSpert"/>
+      </Unit>
+      <Unit>
+        <Filename Value="unitrig.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="UnitRig"/>
+      </Unit>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
     <Version Value="11"/>
     <Target>
-      <Filename Value="project1"/>
+      <Filename Value="binaries/$(TargetOS)_$(TargetCPU)/RadioShackCtl"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>

@@ -1,9 +1,9 @@
-object Form3: TForm3
+object FormSettings: TFormSettings
   Left = 652
   Height = 352
   Top = 241
   Width = 460
-  Caption = 'Form3'
+  Caption = 'Settings'
   ClientHeight = 352
   ClientWidth = 460
   OnClose = FormClose
@@ -28,6 +28,12 @@ object Form3: TForm3
       Caption = 'debug'
       TabOrder = 0
     end
+    object Image1: TImage
+      Left = 154
+      Height = 90
+      Top = 11
+      Width = 90
+    end
   end
   object Panel1: TPanel
     Left = 0
@@ -35,7 +41,6 @@ object Form3: TForm3
     Top = 304
     Width = 460
     Align = alBottom
-    Caption = 'Panel1'
     ClientHeight = 48
     ClientWidth = 460
     TabOrder = 1

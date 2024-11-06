@@ -4,20 +4,21 @@ object FormInit: TFormInit
   Top = 0
   Width = 0
   BorderStyle = bsNone
-  Caption = 'FormInit'
+  Caption = 'RadioShackCtl'
   Menu = MainMenu1
   LCLVersion = '3.7.0.0'
   object MainMenu1: TMainMenu
     Left = 140
     Top = 20
     object MenuItem4: TMenuItem
-      Caption = 'Windows'
+      Caption = 'Window'
+      OnClick = MenuItem4Click
       object MenuItem5: TMenuItem
-        Caption = 'Rig'
+        Caption = 'FTdx10'
         OnClick = MenuItem5Click
       end
       object MenuItem6: TMenuItem
-        Caption = 'Spert'
+        Caption = 'SPert 1000'
         OnClick = MenuItem6Click
       end
     end

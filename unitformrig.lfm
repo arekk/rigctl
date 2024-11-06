@@ -4,7 +4,7 @@ object FormRig: TFormRig
   Top = 363
   Width = 331
   BorderStyle = bsSingle
-  Caption = 'RigCtl'
+  Caption = 'FTdx10'
   ClientHeight = 290
   ClientWidth = 331
   KeyPreview = True

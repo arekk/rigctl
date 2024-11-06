@@ -4,7 +4,7 @@ object FormSpert: TFormSpert
   Top = 550
   Width = 292
   BorderStyle = bsSingle
-  Caption = 'SpertCtl'
+  Caption = 'SPert 1000'
   ClientHeight = 290
   ClientWidth = 292
   KeyPreview = True

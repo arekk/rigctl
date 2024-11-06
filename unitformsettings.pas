@@ -17,9 +17,9 @@ uses
 
 type
 
-  { TForm3 }
+  { TFormSettings }
 
-  TForm3 = class(TForm)
+  TFormSettings = class(TForm)
     Button1: TButton;
     CheckBox1: TCheckBox;
     CheckBox2: TCheckBox;
@@ -29,6 +29,7 @@ type
     GroupBox1: TGroupBox;
     GroupBox2: TGroupBox;
     GroupBox3: TGroupBox;
+    Image1: TImage;
     Label1: TLabel;
     Label2: TLabel;
     Label3: TLabel;
@@ -45,16 +46,16 @@ type
   end;
 
 var
-  Form3: TForm3;
+  FormSettings: TFormSettings;
   Configuration: TConfiguration;
 
 implementation
 
 {$R *.lfm}
 
-{ TForm3 }
+{ TFormSettings }
 
-procedure TForm3.FormShow(Sender: TObject);
+procedure TFormSettings.FormShow(Sender: TObject);
 var
   searchResult: TSearchRec;
 begin
@@ -90,7 +91,7 @@ begin
   SpinEdit1.Value:=Configuration.Settings.flrigServerPort;
 end;
 
-procedure TForm3.Button1Click(Sender: TObject);
+procedure TFormSettings.Button1Click(Sender: TObject);
 begin
   Configuration.Settings.Debug:=CheckBox1.Checked;
   Configuration.Settings.spertStartupFan:=ComboBox1.ItemIndex;
@@ -104,7 +105,7 @@ begin
   Close;
 end;
 
-procedure TForm3.FormClose(Sender: TObject; var CloseAction: TCloseAction);
+procedure TFormSettings.FormClose(Sender: TObject; var CloseAction: TCloseAction);
 begin
   CloseAction:=caHide;
 end;
