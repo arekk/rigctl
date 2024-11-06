@@ -141,7 +141,6 @@ begin
   if Assigned(xmlNode) then
   begin
     command:=xmlNode.TextContent;
-
     begin
       case command of
         'main.get_version': CurrentOutput:=Format(XML_STR_REPLY, ['2.0.05']);
@@ -158,7 +157,11 @@ begin
 
         'rig.get_bwB': CurrentOutput:=XML_BW_REPLY;
 
-        'rig.get_AB': CurrentOutput:=Format(XML_INT_REPLY, [Rig.state.vfo]);
+        'rig.get_AB': begin
+          if Rig.state.vfo = 0
+            then CurrentOutput:=Format(XML_STR_REPLY, ['A'])
+            else CurrentOutput:=Format(XML_STR_REPLY, ['B'])
+        end;
 
         'rig.get_ptt': begin
           if Rig.state.ptt
@@ -181,12 +184,15 @@ begin
         'rig.get_vfoB': CurrentOutput:=Format(XML_STR_REPLY, [IntToStr(Rig.state.vfoB_frq)]);
 
         'rig.set_vfoA': begin
-           xmlNode := xmlNode.NextSibling;
-           if Assigned(xmlNode) then begin
-             // 28_616_781.250000 -> 28_616_781 (part after period is not important)
-             Rig.SetVfoA_frq(StrToInt(Copy2Symb(xmlNode.TextContent, '.')));
-           end;
-           CurrentOutput:=XML_CMD_REPLY
+          xmlNode := xmlNode.NextSibling;
+          if Assigned(xmlNode) then Rig.SetVfoA_frq(StrToInt(Copy2Symb(xmlNode.TextContent, '.'))); // 28_616_781.250000 -> 28_616_781 (part after period is not important)
+          CurrentOutput:=XML_CMD_REPLY;
+        end;
+
+        'rig.set_vfoB': begin
+          xmlNode := xmlNode.NextSibling;
+          if Assigned(xmlNode) then Rig.SetVfoB_frq(StrToInt(Copy2Symb(xmlNode.TextContent, '.')));
+          CurrentOutput:=XML_CMD_REPLY;
         end;
 
         'rig.set_split': begin
@@ -197,7 +203,7 @@ begin
 
         'rig.set_mode': begin
            xmlNode := xmlNode.NextSibling;
-           if Assigned(xmlNode) then Rig.SetMode(xmlNode.TextContent);
+           if Assigned(xmlNode) then Rig.SetCurrentVFOMode(xmlNode.TextContent);
            CurrentOutput:=XML_CMD_REPLY
         end;
 
@@ -214,8 +220,7 @@ begin
         end;
       end;
 
-      if CurrentOutput='' then
-      begin
+      if CurrentOutput='' then begin
         FormDebug.Log('[FlrigServer] command not handled: ' + command);
         CurrentOutput:=Format(XML_FAULT_REPLY, [command + ': unknown method name']);
       end;

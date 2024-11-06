@@ -12,6 +12,8 @@ uses
   Graphics,
   Dialogs,
   Menus,
+  ExtCtrls,
+  UnitSettings,
   UnitFormSettings,
   UnitFormDebug,
   UnitFormSpert,
@@ -29,15 +31,15 @@ type
     MenuItem4: TMenuItem;
     MenuItem5: TMenuItem;
     MenuItem6: TMenuItem;
+    MenuItem7: TMenuItem;
     procedure ConfigurationFormClose(Sender: TObject; var CloseAction: TCloseAction);
+    procedure FormCreate(Sender: TObject);
     procedure MenuItem2Click(Sender: TObject);
-    procedure MenuItem4Click(Sender: TObject);
     procedure MenuItem5Click(Sender: TObject);
     procedure MenuItem6Click(Sender: TObject);
+    procedure MenuItem7Click(Sender: TObject);
   private
-
-  public
-
+    Configuration: TConfiguration;
   end;
 
 var
@@ -49,15 +51,21 @@ implementation
 
 { TFormInit }
 
+procedure TFormInit.FormCreate(Sender: TObject);
+begin
+  Configuration:=TConfiguration.Create(Application.Location);
+  Configuration.Load;
+
+  Width:=0;
+  Height:=0;
+  MenuItem7.Visible:=Configuration.Settings.Debug;
+end;
+
+
 procedure TFormInit.MenuItem2Click(Sender: TObject);
 begin
   FormSettings.OnClose:=@ConfigurationFormClose;
   FormSettings.Show;
-end;
-
-procedure TFormInit.MenuItem4Click(Sender: TObject);
-begin
-
 end;
 
 procedure TFormInit.ConfigurationFormClose(Sender: TObject; var CloseAction: TCloseAction);
@@ -82,6 +90,11 @@ end;
 procedure TFormInit.MenuItem6Click(Sender: TObject);
 begin
   FormSpert.Show;
+end;
+
+procedure TFormInit.MenuItem7Click(Sender: TObject);
+begin
+  FormDebug.Show;
 end;
 
 end.

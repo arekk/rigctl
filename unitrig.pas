@@ -36,14 +36,18 @@ type
       dnr: Boolean;
       dnf: Boolean;
       drPortGain: Byte;
+      txw: Boolean;
+
     public
       constructor Create;
       function getFPwrCur: Byte;
       function getFPwrMax: Byte;
       function getRPwrAvgPercent: Double;
       function getSMeter: String;
+
     private
       function pwrCalc(input: Byte): Byte;
+
     private
       meterValuePwr: Byte;
       meterValueSwr: Byte;
@@ -61,6 +65,7 @@ type
     private
       wf: String;
       ig: String;
+
     public
       constructor Create(waitFor: String; ignore: String);
       function match(payload: String): Boolean;
@@ -76,11 +81,10 @@ type
       comportMutex: TCriticalSection;
       comport: TBlockSerial;
       comportConnected: Boolean;
-      comportLastCommTs: Longword;
       timerKeepAlive: TTimer;
-      timerQuery: TTimer;
       timerRead: TTimer;
       ignorePayload: TRigPayloadSuspend;
+      comportLastCommTs: Longword;
 
     public
       constructor Create(Config: TConfiguration);
@@ -89,15 +93,19 @@ type
       procedure Stop;
       procedure Send(payload: String);
       procedure SetVfoA_frq(frq: Longword);
+      procedure SetVfoB_frq(frq: Longword);
+      procedure SetVfoA_mode(mode: String);
+      procedure SetVfoB_mode(mode: String);
       procedure SetSplit(active: Boolean);
       procedure SetPtt(active: Boolean);
-      procedure SetMode(mode: String);
+      procedure SetCurrentVFOMode(mode: String);
       procedure SetBand(band: String);
       procedure SetPwr(pwr: Byte);
       procedure SetdrPortGain(gain: Byte);
       procedure toggleVox;
       procedure toggleDnr;
       procedure toggleDnf;
+      procedure toggleTxw;
       property state: TRigState Read rigState;
 
     public
@@ -119,8 +127,8 @@ type
       procedure Read;
       procedure ProcessCmd(payload: String);
       procedure onTimerKeepAlive(Sender: TObject);
-      procedure onTimerQuery(Sender: TObject);
       procedure onTimerRead(Sender: TObject);
+      procedure SetVfoMode(vfo: Byte; mode: String);
       function trxModeToStateMode(mode: String): String;
   end;
 
@@ -209,6 +217,10 @@ end;
 
 { TRig }
 
+{ [start] Create -> Start -> start keep-alive timer -> Connect (serial port) -> start read timer }
+{ [run in loop] onTimerRead -> send queries to TRX -> Read (serial port) -> ProcessCmd -> ... }
+{ [stop] Stop -> stop keep-alive -> Disconnect (serial port) -> stop read timer -> Destroy }
+
 constructor TRig.Create(Config: TConfiguration);
 begin
   timerKeepAlive:=TTimer.Create(nil);
@@ -244,7 +256,6 @@ begin
   if not comportConnected then
   begin
     port:=Configuration.Settings.trxPort;
-
     if port='AUTO' then
     begin
       if FindFirst('/dev/tty.SLAB_USBtoUART*', faAnyFile, searchResult) = 0 then
@@ -292,35 +303,11 @@ begin
 
         comport.Purge;
 
-        Send('PS1;');
-        Sleep(1200);
-        Send('PS1;');
-
-        timerQuery:=TTimer.Create(nil);
-        timerQuery.Interval:=configuration.Settings.trxPool;
-        timerQuery.OnTimer:=@onTimerQuery;
-        timerQuery.Enabled:=True;
-
         timerRead:=TTimer.Create(nil);
         timerRead.Interval:=configuration.Settings.trxPool;
         timerRead.OnTimer:=@onTimerRead;
         timerRead.Enabled:=True;
       end;
-    finally
-      comportMutex.Release;
-    end;
-  end;
-end;
-
-procedure TRig.onTimerQuery(Sender: TObject);
-begin
-  if (comportConnected = true) then
-  begin
-    comportMutex.Acquire;
-    try
-      comport.SendString(Utf8ToAnsi('TX;VS;FA;MD0;FB;MD1;ST;RM1;PC;VX;NR0;BC0;EX010417;'));
-      if rigState.ptt then comport.SendString(Utf8ToAnsi('RM5;RM6;'));
-      Read;
     finally
       comportMutex.Release;
     end;
@@ -343,7 +330,21 @@ end;
 
 procedure TRig.onTimerRead(Sender: TObject);
 begin
-   Read;
+  { send request for all data required for state update }
+  if (comportConnected = true) then
+  begin
+    comportMutex.Acquire;
+    try
+      comport.SendString(Utf8ToAnsi('TX;VS;FA;MD0;FB;MD1;ST;RM1;PC;VX;NR0;BC0;EX010417;TS;'));
+      if rigState.ptt then comport.SendString(Utf8ToAnsi('RM5;RM6;'));
+      Read;
+    finally
+      comportMutex.Release;
+    end;
+  end;
+
+  { now can read data from TRX }
+  Read;
 end;
 
 procedure TRig.Read;
@@ -394,6 +395,8 @@ begin
     'BC': rigState.dnf:=(payload.Substring(3, 1) = '1');
 
     'NR': rigState.dnr:=(payload.Substring(3, 1) = '1');
+
+    'TS': rigState.txw:=(payload.Substring(2, 1) = '1');
 
     'VX': rigState.vox:=(payload.Substring(2, 1) = '1');
 
@@ -463,15 +466,62 @@ begin
   end;
 end;
 
-{ VFO-A frequency (there is no _, in cmd it's only for readibility) - 21.700 MHz -> 21_270_000 -> FA_021_270_000 (FA + 6 chars left padded with 0) }
+procedure TRig.Stop;
+begin
+  if rigState.ptt then SetPtt(False);
+  timerKeepAlive.Enabled:=False;
+  Disconnect;
+  FormDebug.Log('[Rig] stopped');
+end;
+
+procedure TRig.Disconnect;
+begin
+  if comportConnected then
+    begin
+      FormDebug.Log('[Rig] disconnecting');
+
+      timerRead.Enabled:=False;
+      FreeAndNil(timerRead);
+
+      comportConnected:=False;
+      rigState.active:=False;
+
+      comport.CloseSocket;
+    end;
+
+  FreeAndNil(comport);
+end;
+
+destructor TRig.Destroy;
+begin
+  timerKeepAlive.Enabled:=False;
+  FreeAndNil(timerKeepAlive);
+
+  FreeAndNil(comportMutex);
+  FreeAndNil(rigState);
+
+  inherited;
+end;
+
+{ update TRX state procedures }
+
 procedure TRig.SetVfoA_frq(frq: Longword);
 var
   frequency: String;
 begin
+  // VFO-A frequency (there is no _, in cmd it's only for readibility) - 21.700 MHz -> 21_270_000 -> FA_021_270_000 (FA + 6 chars left padded with 0)
   frequency:=ReplaceStr(PadLeft(IntToStr(frq), 9), ' ', '0');
   ignorePayload:=TRigPayloadSuspend.Create('FA' + frequency, 'FA');
   Send('FA' + frequency);
   rigState.vfoA_frq:=frq;
+end;
+
+procedure TRig.SetVfoB_frq(frq: Longword);
+var
+  frequency: String;
+begin
+  frequency:=ReplaceStr(PadLeft(IntToStr(frq), 9), ' ', '0');
+  Send('FB' + frequency);
 end;
 
 procedure TRig.SetdrPortGain(gain: Byte);
@@ -484,7 +534,22 @@ begin
   Send(payload);
 end;
 
-procedure TRig.SetMode(mode: String);
+procedure TRig.SetCurrentVFOMode(mode: String);
+begin
+    SetVfoMode(rigState.vfo, mode);
+end;
+
+procedure TRig.SetVfoA_Mode(mode: String);
+begin
+  SetVfoMode(0, mode);
+end;
+
+procedure TRig.SetVfoB_Mode(mode: String);
+begin
+  SetVfoMode(1, mode);
+end;
+
+procedure TRig.SetVfoMode(vfo: Byte; mode: String);
 var
   translatedMode: String;
 begin
@@ -506,12 +571,20 @@ begin
    'PSK': translatedMode:='E';
    'DATA-FM-N': translatedMode:='F';
   end;
-  if translatedMode <> '' then Send('MD' + IntToStr(rigState.vfo) + translatedMode);
+  if translatedMode <> '' then Send('MD' + IntToStr(vfo) + translatedMode);
 end;
 
 procedure TRig.SetSplit(active: Boolean);
 begin
-  if active then Send('ST1') else Send('ST0');
+  if active then begin
+    ignorePayload:=TRigPayloadSuspend.Create('ST1', 'ST0');
+    rigState.split:=True;
+    Send('ST1');
+  end else begin
+    ignorePayload:=TRigPayloadSuspend.Create('ST0', 'ST1');
+    rigState.split:=False;
+    Send('ST0');
+  end;
 end;
 
 procedure TRig.SetPtt(active: Boolean);
@@ -572,33 +645,16 @@ begin
   if rigState.dnf then Send(';') else Send(';');
 end;
 
-procedure TRig.Stop;
+procedure TRig.toggleTxw;
 begin
-  if rigState.ptt then SetPtt(False);
-  timerKeepAlive.Enabled:=False;
-  Disconnect;
-  FormDebug.Log('[Rig] stopped');
-end;
-
-procedure TRig.Disconnect;
-begin
-  if comportConnected then
-    begin
-      FormDebug.Log('[Rig] disconnecting');
-
-      timerQuery.Enabled:=False;
-      FreeAndNil(timerQuery);
-
-      timerRead.Enabled:=False;
-      FreeAndNil(timerRead);
-
-      comportConnected:=False;
-      rigState.active:=False;
-
-      comport.CloseSocket;
-    end;
-
-  FreeAndNil(comport);
+    if rigState.txw then begin
+    ignorePayload:=TRigPayloadSuspend.Create('TS0', 'TS1');
+    Send('TS0')
+  end else begin
+    ignorePayload:=TRigPayloadSuspend.Create('TS1', 'TS0');
+    Send('TS1')
+  end;
+  rigState.dnr:=(not rigState.dnr);
 end;
 
 function TRig.trxModeToStateMode(mode: String): String;
@@ -620,17 +676,6 @@ begin
    'E': Result:='PSK';
    'F': Result:='DATA-FM-N';
    end;
-end;
-
-destructor TRig.Destroy;
-begin
-  timerKeepAlive.Enabled:=False;
-  FreeAndNil(timerKeepAlive);
-
-  FreeAndNil(comportMutex);
-  FreeAndNil(rigState);
-
-  inherited;
 end;
 
 end.

@@ -156,7 +156,7 @@ begin
       else  FormDebug.Log('[Spert] port not discovered');
   end;
 
-  // ping
+  // ping every 1s to check is connection still alive
   if comportConnected then Send('PA?');
 
   // checking timestamp of last meessage read from SPert
