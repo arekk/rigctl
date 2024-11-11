@@ -113,6 +113,16 @@
         <UnitName Value="UnitFormSpert"/>
       </Unit>
       <Unit>
+        <Filename Value="unitrigftdx10.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="UnitRigFTdx10"/>
+      </Unit>
+      <Unit>
+        <Filename Value="unitevents.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="UnitEvents"/>
+      </Unit>
+      <Unit>
         <Filename Value="unitrig.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="UnitRig"/>

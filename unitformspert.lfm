@@ -1,7 +1,7 @@
 object FormSpert: TFormSpert
   Left = 581
   Height = 290
-  Top = 550
+  Top = 732
   Width = 292
   BorderStyle = bsSingle
   Caption = 'SPert 1000'
@@ -10,7 +10,6 @@ object FormSpert: TFormSpert
   KeyPreview = True
   OnClose = FormClose
   OnCreate = FormCreate
-  OnDestroy = FormDestroy
   OnKeyDown = FormKeyDown
   OnShow = FormShow
   LCLVersion = '3.7.0.0'

@@ -13,13 +13,11 @@ uses
   Forms,
 
   { you can add units after this }
-  UnitSettings,
-
-  UnitFormSpert,
-  UnitFormRig,
+  UnitFormInit,
   UnitFormDebug,
-  UnitFormSettings,
-  UnitFormInit, UnitFlrigServer, UnitRig;
+  UnitFormRig,
+  UnitFormSpert,
+  UnitFormSettings;
 
 {$R *.res}
 
@@ -34,6 +32,8 @@ begin
   Application.CreateForm(TFormRig, FormRig);
   Application.CreateForm(TFormSpert, FormSpert);
   Application.CreateForm(TFormSettings, FormSettings);
+
+  FormInit.PostInit;
 
   Application.Run;
 end.

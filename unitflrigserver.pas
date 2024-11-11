@@ -8,6 +8,7 @@ uses
   Classes,
   SysUtils,
   StrUtils,
+
   IdGlobal,
   IdSocketHandle,
   IdCustomHTTPServer,
@@ -15,6 +16,7 @@ uses
   IdHTTPServer,
   laz2_DOM,
   laz2_XMLRead,
+
   UnitFormDebug,
   UnitSettings,
   UnitRig;
@@ -22,9 +24,16 @@ uses
 type
   TFlrigServer = class
     public
-      Rig: TRig;
+      constructor Create(c: TConfiguration; r: TRig);
+      destructor Destroy; override;
+      procedure Start;
+      procedure Stop;
 
     private
+      procedure CommandGet(AContext: TIdContext; ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo);
+      function HandleRequest(inputXML: String): String;
+    private
+      Rig: TRig;
       Server: TIdHTTPServer;
       Configuration: TConfiguration;
 
@@ -34,26 +43,17 @@ type
       const XML_MODES_REPLY ='<?xml version="1.0"?><methodResponse><params><param><value><array><data><value>LSB</value><value>USB</value><value>CW-U</value><value>FM</value><value>AM</value><value>RTTY-L</value><value>CW-L</value><value>DATA-L</value><value>RTTY-U</value><value>DATA-FM</value><value>FM-N</value><value>DATA-U</value><value>AM-N</value><value>PSK</value><value>DATA-FMN</value></data></array></value></param></params></methodResponse>';
       const XML_BW_REPLY    ='<?xml version="1.0"?><methodResponse><params><param><value><array><data><value>3000</value><value></value></data></array></value></param></params></methodResponse></methodResponse>';
       const XML_FAULT_REPLY ='<?xml version="1.0"?><methodResponse><fault><value><struct><member><name>faultCode</name><value><i4>-1</i4></value></member><member><name>faultString</name><value>%s</value></member></struct></value></fault></methodResponse>';
-
-     public
-       constructor Create(Config: TConfiguration);
-       destructor Destroy; override;
-       procedure Start;
-       procedure Stop;
-
-    private
-       procedure CommandGet(AContext: TIdContext; ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo);
-       function HandleRequest(inputXML: String): String;
   end;
 
 implementation
 
 { THTTPServerThread }
 
-constructor TFlrigServer.Create(Config: TConfiguration);
+constructor TFlrigServer.Create(c: TConfiguration; r: TRig);
 begin
-  Configuration:=Config;
-  Server := TIdHTTPServer.Create(nil);
+  Configuration:=c;
+  Rig:=r;
+  Server:=TIdHTTPServer.Create(nil);
 end;
 
 destructor TFlrigServer.Destroy;
@@ -149,39 +149,39 @@ begin
 
         'rig.get_pwrmeter_scale': CurrentOutput:=Format(XML_INT_REPLY, [1]);
 
-        'rig.get_modeA': CurrentOutput:=Format(XML_STR_REPLY, [Rig.state.vfoA_mode]);
+        'rig.get_modeA': CurrentOutput:=Format(XML_STR_REPLY, [Rig.getVfoA_mode]);
 
-        'rig.get_modeB': CurrentOutput:=Format(XML_STR_REPLY, [Rig.state.vfoB_mode]);
+        'rig.get_modeB': CurrentOutput:=Format(XML_STR_REPLY, [Rig.getVfoB_mode]);
 
         'rig.get_bwA': CurrentOutput:=XML_BW_REPLY;
 
         'rig.get_bwB': CurrentOutput:=XML_BW_REPLY;
 
         'rig.get_AB': begin
-          if Rig.state.vfo = 0
+          if Rig.getVfo = 0
             then CurrentOutput:=Format(XML_STR_REPLY, ['A'])
             else CurrentOutput:=Format(XML_STR_REPLY, ['B'])
         end;
 
         'rig.get_ptt': begin
-          if Rig.state.ptt
+          if Rig.pttActive
             then CurrentOutput:=Format(XML_INT_REPLY, [1])
             else CurrentOutput:=Format(XML_INT_REPLY, [0])
         end;
 
-        'rig.get_mode': CurrentOutput:=Format(XML_STR_REPLY, [Rig.state.mode]);
+        'rig.get_mode': CurrentOutput:=Format(XML_STR_REPLY, [Rig.getMode]);
 
         'rig.get_split': begin
-          if Rig.state.split
+          if Rig.splitActive
             then CurrentOutput:=Format(XML_INT_REPLY, [1])
             else CurrentOutput:=Format(XML_INT_REPLY, [0])
         end;
 
         'rig.get_modes':CurrentOutput:=XML_MODES_REPLY;
 
-        'rig.get_vfoA': CurrentOutput:=Format(XML_STR_REPLY, [IntToStr(Rig.state.vfoA_frq)]);
+        'rig.get_vfoA': CurrentOutput:=Format(XML_STR_REPLY, [IntToStr(Rig.getVfoA_frq)]);
 
-        'rig.get_vfoB': CurrentOutput:=Format(XML_STR_REPLY, [IntToStr(Rig.state.vfoB_frq)]);
+        'rig.get_vfoB': CurrentOutput:=Format(XML_STR_REPLY, [IntToStr(Rig.getVfoB_frq)]);
 
         'rig.set_vfoA': begin
           xmlNode := xmlNode.NextSibling;

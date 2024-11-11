@@ -12,41 +12,45 @@ uses
   StrUtils,
   LazSynaser,
   Syncobjs,
+
   UnitSettings,
+
   UnitFormDebug;
 
 type
+  TSpertEvents = class
+    public
+      const BEFORE_TUNE_START = 1;
+      const AFTER_TUNE_END = 2;
+  end;
+
   TSpertEvent = interface
     procedure call(event: Byte);
   end;
 
   TSpertState = class
     public
-    const EVENT_BEFORE_TUNE_START = 1;
-    const EVENT_AFTER_TUNE_END = 2;
-    public
-    active: Boolean;
-    pwr: Word;
-    band: String;
-    temp:Word;
-    tx: Boolean;
-    fpwrMax: Integer;
-    fpwrAvg: Integer;
-    fpwrCur: Integer;
-    rpwrAvgPercent: Double;
-    atuPresent: Boolean;
-    atuActive: Boolean;
-    atuColor: String;
-    atuTune: Boolean;
-    version: String;
-    onEvent: TSpertEvent;
-  public
-    constructor Create;
-  private
-    fpwrSum: Integer;
-    fpwrCnt: Integer;
-    rpwrSum: Integer;
-    rpwrCnt: Integer;
+      constructor Create;
+    private
+      active: Boolean;
+      pwr: Word;
+      band: String;
+      temp:Word;
+      tx: Boolean;
+      fpwrMax: Integer;
+      fpwrAvg: Integer;
+      fpwrCur: Integer;
+      rpwrAvgPercent: Double;
+      atuPresent: Boolean;
+      atuActive: Boolean;
+      atuColor: String;
+      atuTune: Boolean;
+      version: String;
+      onEvent: TSpertEvent;
+      fpwrSum: Integer;
+      fpwrCnt: Integer;
+      rpwrSum: Integer;
+      rpwrCnt: Integer;
   end;
 
   TSpertPayloadSuspend = class
@@ -55,6 +59,33 @@ type
   end;
 
   TSpert = class
+    public
+      constructor Create(Config: TConfiguration);
+      destructor Destroy; override;
+
+      procedure setEventHandler(handler: TSpertEvent);
+
+      procedure Start;
+      procedure Stop;
+
+      procedure toggleAtuState;
+      procedure setPower(pwr: Integer);
+      procedure tuneAtu;
+
+      function isActive:Boolean;
+      function getPwr: Word;
+      function getBand: String;
+      function getTemp:Word;
+      function txActive:Boolean;
+      function getFpwrMax: Integer;
+      function getFpwrAvg: Integer;
+      function getFpwrCur: Integer;
+      function getRpwrAvgPercent: Double;
+      function isAtuPresent: Boolean;
+      function isAtuActive: Boolean;
+      function getAtuColor: String;
+      function isAtuTunning: Boolean;
+      function getVersion: String;
     private
       configuration: TConfiguration;
       spertState: TSpertState;
@@ -65,15 +96,6 @@ type
       timerKeepAlive: TTimer;
       timerRead: TTimer;
       ignorePayload: TSpertPayloadSuspend;
-    public
-      constructor Create(Config: TConfiguration);
-      destructor Destroy; override;
-      procedure Start;
-      procedure toggleAtuState;
-      procedure setPower(pwr: Integer);
-      procedure tuneAtu;
-      procedure Stop;
-      property state: TSpertState Read spertState;
     private
       procedure onTimerKeepAlive(Sender: TObject);
       procedure Connect(port: String);
@@ -86,6 +108,10 @@ type
     end;
 
 implementation
+
+{ TSpertEvent }
+
+{ TSpertState }
 
 constructor TSpertState.Create;
 begin
@@ -103,7 +129,10 @@ begin
   atuColor:='GREY';
   atuTune:=False;
   version:='';
+  onEvent:=nil;
 end;
+
+{ TSpert }
 
 constructor TSpert.Create(Config: TConfiguration);
 begin
@@ -118,6 +147,11 @@ begin
   spertState.active:=False;
 
   comportConnected:=False;
+end;
+
+procedure TSpert.setEventHandler(handler: TSpertEvent);
+begin
+  spertState.onEvent:=handler;
 end;
 
 procedure TSpert.Start;
@@ -256,10 +290,8 @@ procedure TSpert.ProcessCmd(cmd: String);
 var
   value: String;
   number: Integer;
-  txWas: Boolean;
   atuTuneWas: Boolean;
 begin
-  txWas:=spertState.tx;
   atuTuneWas:=spertState.atuTune;
 
   if cmd <> 'PA_SP7SP' then FormDebug.Log('[Spert] < "' + cmd + '"');
@@ -368,7 +400,7 @@ begin
   begin
     spertState.atuTune:=False;
     spertState.tx:=False;
-    if Assigned(spertState.onEvent) and atuTuneWas then spertState.onEvent.call(TSpertState.EVENT_AFTER_TUNE_END);
+    if Assigned(spertState.onEvent) and atuTuneWas then spertState.onEvent.call(TSpertEvents.AFTER_TUNE_END);
   end;
 
   // ATU colors
@@ -376,46 +408,6 @@ begin
 
   // firmware version
   if StartsStr('Ver:', cmd) then spertState.version:='SPert 1000 (' + ReplaceText(cmd, 'Ver: ', '') + ')';
-end;
-
-function TSpert.extractInt(cmd: String; prefix: String): Integer;
-var
-  n: Integer;
-begin
-  Result:=-1;
-  if TryStrToInt(ReplaceText(cmd, prefix, ''), n) then
-    Result:=n;
-end;
-
-procedure TSpert.toggleAtuState;
-begin
-  if spertState.active then
-  begin
-    if spertState.atuActive
-      then Send('ATU_STATE: 0')
-      else Send('ATU_STATE: 1');
-  end;
-end;
-
-procedure TSpert.setPower(pwr: Integer);
-var
-  payload: String;
-begin
-    spertState.pwr:=pwr;
-
-    payload:='ALC_PWM: ' + IntToStr(pwr);
-
-    ignorePayload:=TSpertPayloadSuspend.Create;
-    ignorePayload.waitFor:=payload;
-    ignorePayload.ignore:='ALC_PWM: ';
-
-    Send(payload)
-end;
-
-procedure TSpert.tuneAtu;
-begin
-  if Assigned(spertState.onEvent) then spertState.onEvent.call(TSpertState.EVENT_BEFORE_TUNE_START);
-  Send('TUNE ON');
 end;
 
 procedure TSpert.Send(cmd: String);
@@ -469,6 +461,120 @@ begin
   FreeAndNil(spertState);
 
   inherited;
+end;
+
+{ set - get }
+
+procedure TSpert.toggleAtuState;
+begin
+  if spertState.active then
+  begin
+    if spertState.atuActive
+      then Send('ATU_STATE: 0')
+      else Send('ATU_STATE: 1');
+  end;
+end;
+
+procedure TSpert.setPower(pwr: Integer);
+var
+  payload: String;
+begin
+    spertState.pwr:=pwr;
+
+    payload:='ALC_PWM: ' + IntToStr(pwr);
+
+    ignorePayload:=TSpertPayloadSuspend.Create;
+    ignorePayload.waitFor:=payload;
+    ignorePayload.ignore:='ALC_PWM: ';
+
+    Send(payload)
+end;
+
+procedure TSpert.tuneAtu;
+begin
+  if Assigned(spertState.onEvent) then spertState.onEvent.call(TSpertEvents.BEFORE_TUNE_START);
+  Send('TUNE ON');
+end;
+
+function TSpert.isActive:Boolean;
+begin
+  Result:=spertState.active;
+end;
+
+function TSpert.getPwr: Word;
+begin
+  Result:=spertState.pwr;
+end;
+
+function TSpert.getBand: String;
+begin
+  Result:=spertState.band;
+end;
+
+function TSpert.getTemp:Word;
+begin
+  Result:=spertState.temp;
+end;
+
+function TSpert.txActive:Boolean;
+begin
+  Result:=spertState.tx;
+end;
+
+function TSpert.getFpwrMax: Integer;
+begin
+  Result:=spertState.fpwrMax;
+end;
+
+function TSpert.getFpwrAvg: Integer;
+begin
+  Result:=spertState.fpwrAvg;
+end;
+
+function TSpert.getFpwrCur: Integer;
+begin
+  Result:=spertState.fpwrCur;
+end;
+
+function TSpert.getRpwrAvgPercent: Double;
+begin
+  Result:=spertState.rpwrAvgPercent;
+end;
+
+function TSpert.isAtuPresent: Boolean;
+begin
+  Result:=spertState.atuPresent;
+end;
+
+function TSpert.isAtuActive: Boolean;
+begin
+  Result:=spertState.atuActive;
+end;
+
+function TSpert.getAtuColor: String;
+begin
+  Result:=spertState.atuColor;
+end;
+
+function TSpert.isAtuTunning: Boolean;
+begin
+  Result:=spertState.atuTune;
+end;
+
+function TSpert.getVersion: String;
+begin
+  Result:=spertState.version;
+end;
+
+{ helpers }
+
+function TSpert.extractInt(cmd: String; prefix: String): Integer;
+var
+  n: Integer;
+begin
+  Result:=-1;
+  if TryStrToInt(ReplaceText(cmd, prefix, ''), n) then
+    Result:=n;
 end;
 
 end.

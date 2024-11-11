@@ -1,7 +1,7 @@
 object FormInit: TFormInit
   Left = 435
   Height = 232
-  Top = 141
+  Top = 790
   Width = 369
   BorderStyle = bsNone
   Caption = 'RadioShackCtl'
@@ -33,8 +33,12 @@ object FormInit: TFormInit
         Caption = 'Application'
         OnClick = MenuItem2Click
       end
-      object MenuItem3: TMenuItem
-        Caption = 'SPert 1000'
+    end
+    object MenuItem3: TMenuItem
+      Caption = 'Help'
+      object MenuItem8: TMenuItem
+        Caption = 'Keyboard shortcuits'
+        OnClick = MenuItem8Click
       end
     end
   end

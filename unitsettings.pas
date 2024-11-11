@@ -34,16 +34,13 @@ type
 
     macroModeA: Boolean;
     macroModeAMod: String;
-    macroModeAPwr: Integer;
-    macroModeAFan: Integer;
+    macroModeASpertPwr: Integer;
+    macroModeATrxPwr: Integer;
+
     macroModeB: Boolean;
     macroModeBMod: String;
-    macroModeBPwr: Integer;
-    macroModeBFan: Integer;
-    macroModeC: Boolean;
-    macroModeCMod: String;
-    macroModeCPwr: Integer;
-    macroModeCFan: Integer;
+    macroModeBSpertPwr: Integer;
+    macroModeBTrxPwr: Integer;
   end;
 
   TConfiguration = class
@@ -58,8 +55,6 @@ type
       iniPath: String;
       Settings: TSettings;
   end;
-
-
 
 implementation
 
@@ -94,24 +89,18 @@ begin
     Settings.flrigServerEnabled:=iniFile.ReadBool('FlrigServer', 'Enabled', false);
     Settings.flrigServerPort:=iniFile.ReadInteger('FlrigServer', 'Port', 12345);
 
-
     Settings.TrxTunePower:=iniFile.ReadInteger('Macro', 'TrxTunePower', 0);
     Settings.AtuOffOnBandChange:=iniFile.ReadBool('Macro', 'AtuOffOnBandChange', false);
 
     Settings.macroModeA:=iniFile.ReadBool('Macro', 'ModeA', false);
-    Settings.macroModeAMod:=iniFile.ReadString('Macro', 'ModeAMod', '');
-    Settings.macroModeAPwr:=iniFile.ReadInteger('Macro', 'ModeAPwr', 0);
-    Settings.macroModeAFan:=iniFile.ReadInteger('Macro', 'ModeAFan', 0);
+    Settings.macroModeAMod:=iniFile.ReadString('Macro', 'ModeA_Mod', '');
+    Settings.macroModeASpertPwr:=iniFile.ReadInteger('Macro', 'ModeA_SPertPwr', 0);
+    Settings.macroModeATrxPwr:=iniFile.ReadInteger('Macro', 'ModeA_TrxPwr', 0);
 
     Settings.macroModeB:=iniFile.ReadBool('Macro', 'ModeB', false);
-    Settings.macroModeBMod:=iniFile.ReadString('Macro', 'ModeBMod', '');
-    Settings.macroModeBPwr:=iniFile.ReadInteger('Macro', 'ModeBPwr', 0);
-    Settings.macroModeBFan:=iniFile.ReadInteger('Macro', 'ModeBFan', 0);
-
-    Settings.macroModeC:=iniFile.ReadBool('Macro', 'ModeC', false);
-    Settings.macroModeCMod:=iniFile.ReadString('Macro', 'ModeCMod', '');
-    Settings.macroModeCPwr:=iniFile.ReadInteger('Macro', 'ModeCPwr', 0);
-    Settings.macroModeCFan:=iniFile.ReadInteger('Macro', 'ModeCFan', 0);
+    Settings.macroModeBMod:=iniFile.ReadString('Macro', 'ModeB_Mod', '');
+    Settings.macroModeBSpertPwr:=iniFile.ReadInteger('Macro', 'ModeB_SPertPwr', 0);
+    Settings.macroModeBTrxPwr:=iniFile.ReadInteger('Macro', 'ModeB_TrxPwr', 0);
   finally
     iniFile.Free;
   end;
@@ -146,19 +135,16 @@ begin
     iniFile.WriteBool('Macro', 'AtuOffOnBandChange', Settings.AtuOffOnBandChange);
 
     iniFile.WriteBool('Macro', 'ModeA', Settings.macroModeA);
-    iniFile.WriteString('Macro', 'ModeAMod', Settings.macroModeAMod);
-    iniFile.WriteInteger('Macro', 'ModeAPwr', Settings.macroModeAPwr);
-    iniFile.WriteInteger('Macro', 'ModeAFan', Settings.macroModeAFan);
+    iniFile.WriteString('Macro', 'ModeA_Mod', Settings.macroModeAMod);
+    iniFile.WriteInteger('Macro', 'ModeA_SPertPwr', Settings.macroModeASpertPwr);
+    iniFile.WriteInteger('Macro', 'ModeA_TrxPwr', Settings.macroModeATrxPwr);
 
     iniFile.WriteBool('Macro', 'ModeB', Settings.macroModeB);
-    iniFile.WriteString('Macro', 'ModeBMod', Settings.macroModeBMod);
-    iniFile.WriteInteger('Macro', 'ModeBPwr', Settings.macroModeBPwr);
-    iniFile.WriteInteger('Macro', 'ModeBFan', Settings.macroModeBFan);
+    iniFile.WriteString('Macro', 'ModeB_Mod', Settings.macroModeBMod);
+    iniFile.WriteInteger('Macro', 'ModeB_SPertPwr', Settings.macroModeBSpertPwr);
+    iniFile.WriteInteger('Macro', 'ModeB_TrxPwr', Settings.macroModeBTrxPwr);
 
-    iniFile.WriteBool('Macro', 'ModeC', Settings.macroModeC);
-    iniFile.WriteString('Macro', 'ModeCMod', Settings.macroModeCMod);
-    iniFile.WriteInteger('Macro', 'ModeCPwr', Settings.macroModeCPwr);
-    iniFile.WriteInteger('Macro', 'ModeCFan', Settings.macroModeCFan);
+
   finally
     iniMutex.Release;
     iniFile.Free;
