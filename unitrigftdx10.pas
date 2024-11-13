@@ -12,10 +12,8 @@ uses
   StrUtils,
   LazSynaser,
   Syncobjs,
-
   UnitRig,
   UnitSettings,
-
   UnitFormDebug;
 
 type

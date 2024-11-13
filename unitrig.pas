@@ -23,12 +23,10 @@ type
 
     private
       fResult: Boolean;
-      fStatusText : string;
       fPort: String;
       fPortRate: Integer;
       fSend: String;
       fExpect: String;
-      procedure ShowStatus;
   end;
 
   TRigEvents = class
@@ -112,11 +110,6 @@ begin
   fResult:=False;
 end;
 
-procedure TRigPortDiscoverThread.ShowStatus;
-begin
-  FormDebug.Log('[Rig] PortDiscover - ' + fStatusText);
-end;
-
 procedure TRigPortDiscoverThread.Execute;
 var
   comport: TBlockSerial;
@@ -127,8 +120,7 @@ begin
   comport.NonBlock:=True;
   comport.Connect(fPort);
   comport.Config(fPortRate, 8, 'N', SB1, False, True);
-  fStatusText:='connection to ' + fPort +  ' -> ' + comport.LastErrorDesc + ' code: ' + Inttostr(comport.LastError);
-  Synchronize(@Showstatus);
+  FormDebug.Log('[Rig] PortDiscover - connection to ' + fPort +  ' -> ' + comport.LastErrorDesc + ' code: ' + Inttostr(comport.LastError));
   if comport.LastError = 0 then
   begin
     comport.Purge;

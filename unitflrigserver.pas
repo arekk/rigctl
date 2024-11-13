@@ -8,7 +8,6 @@ uses
   Classes,
   SysUtils,
   StrUtils,
-
   IdGlobal,
   IdSocketHandle,
   IdCustomHTTPServer,
@@ -16,7 +15,6 @@ uses
   IdHTTPServer,
   laz2_DOM,
   laz2_XMLRead,
-
   UnitFormDebug,
   UnitSettings,
   UnitRig;

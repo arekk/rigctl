@@ -12,9 +12,7 @@ uses
   StrUtils,
   LazSynaser,
   Syncobjs,
-
   UnitSettings,
-
   UnitFormDebug;
 
 type

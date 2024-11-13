@@ -12,7 +12,8 @@ uses
   Graphics,
   Dialogs,
   StdCtrls,
-  ExtCtrls, Spin,
+  ExtCtrls,
+  Spin,
   UnitSettings;
 
 type

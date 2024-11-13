@@ -59,9 +59,16 @@ type
 implementation
 
 constructor TConfiguration.Create(applicationLocation: String);
+var iniDir: String;
 begin
-  iniPath:=ExtractFilePath(applicationLocation) + 'rshackctr.ini';
-  if (not FileExists(iniPath)) then FileCreate(iniPath);
+  {$IFDEF DARWIN}
+  iniDir:=GetUserDir + PathDelim + '.config' + PathDelim + 'radioshackctl';
+  if (not DirectoryExists(iniDir)) then CreateDir(iniDir);
+  {$ELSE}
+  iniDir:=ExtractFilePath(applicationLocation);
+  {$ENDIF}
+
+  iniPath:=iniDir + PathDelim + 'radioshackctl.ini';
 
   iniMutex:=TCriticalSection.Create;
 end;
@@ -73,7 +80,7 @@ begin
   try
     iniFile:=TIniFile.Create(iniPath);
 
-    Settings.Debug:=iniFile.ReadBool('Generic', 'Debug', True);
+    Settings.Debug:=iniFile.ReadBool('Generic', 'Debug', false);
 
     Settings.spertEnabled:=iniFile.ReadBool('SPert', 'Enabled', true);
     Settings.spertPort:=iniFile.ReadString('SPert', 'Port', 'AUTO');
@@ -111,8 +118,7 @@ var
   iniFile: TIniFile;
 begin
   try
-    iniMutex.Acquire;;
-
+    iniMutex.Acquire;
     iniFile:=TIniFile.Create(iniPath);
 
     iniFile.WriteBool('Generic', 'Debug', Settings.debug);
@@ -143,8 +149,6 @@ begin
     iniFile.WriteString('Macro', 'ModeB_Mod', Settings.macroModeBMod);
     iniFile.WriteInteger('Macro', 'ModeB_SPertPwr', Settings.macroModeBSpertPwr);
     iniFile.WriteInteger('Macro', 'ModeB_TrxPwr', Settings.macroModeBTrxPwr);
-
-
   finally
     iniMutex.Release;
     iniFile.Free;
@@ -152,4 +156,3 @@ begin
 end;
 
 end.
-

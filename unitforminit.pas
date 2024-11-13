@@ -13,12 +13,10 @@ uses
   Dialogs,
   Menus,
   ExtCtrls,
-
   UnitSettings,
   UnitEvents,
   UnitSpert,
   UnitRig,
-
   UnitFormSettings,
   UnitFormDebug,
   UnitFormSpert,
@@ -120,7 +118,7 @@ begin
   helpKeboard:=TStringList.Create;
   helpKeboard.Delimiter:=#13;
 
-  helpKeboard.Add('Rig');
+  helpKeboard.Add('TRX');
   helpKeboard.Add('');
   helpKeboard.Add('VOX on/off.................... ⌘+backspace');
   helpKeboard.Add('Split on/off.................. ⌘+S');

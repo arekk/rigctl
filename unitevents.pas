@@ -8,11 +8,9 @@ uses
   Classes,
   SysUtils,
   StrUtils,
-
   UnitSettings,
   UnitSpert,
   UnitRig,
-
   UnitFormDebug;
 
 type

@@ -20,7 +20,6 @@ uses
   ComCtrls,
   Buttons,
   StrUtils,
-
   UnitSettings,
   UnitFlrigServer,
   UnitRig,
@@ -55,8 +54,6 @@ type
     GroupBox1: TGroupBox;
     GroupBox2: TGroupBox;
     GroupBox3: TGroupBox;
-    ImageBallBlue: TImage;
-    ImageBallGreen: TImage;
     LabelPwr: TLabel;
     LabelDgain: TLabel;
     Label3: TLabel;
@@ -132,8 +129,10 @@ begin
 
    FlRigServer:=TFlrigServer.Create(Configuration, Rig);
 
-   picBallGreen:=ImageBallGreen.Picture.Bitmap;
-   picBallBlue:=ImageBallBlue.Picture.Bitmap;
+   picBallGreen:=TBitMap.Create;
+   picBallGreen.LoadFromResourceName(HInstance, 'BALL_GREEN_ICON');
+   picBallBlue:=TBitMap.Create;
+   picBallBlue.LoadFromResourceName(HInstance, 'BALL_BLUE_ICON');
 end;
 
 procedure TFormRig.FormShow(Sender: TObject);

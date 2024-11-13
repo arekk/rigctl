@@ -77,7 +77,6 @@ procedure TFormDebug.FormShow(Sender: TObject);
 begin
   NSView(Handle).window.setFrameAutosaveName(NSSTR(ClassName));
   CheckBox1.Checked:=True;
-  Log('Current Directory is : ' + ExtractFilePath(Application.Location));
 end;
 
 procedure TFormDebug.Button1Click(Sender: TObject);

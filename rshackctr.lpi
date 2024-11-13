@@ -11,10 +11,19 @@
       <XPManifest>
         <DpiAware Value="True"/>
         <TextName Value=""/>
-        <TextDesc Value="SPert 1000 + FTdx10"/>
+        <TextDesc Value=""/>
       </XPManifest>
       <Icon Value="0"/>
+      <Resources Count="2">
+        <Resource_0 FileName="ball_blue_icon.bmp" Type="BITMAP" ResourceName="BALL_BLUE_ICON"/>
+        <Resource_1 FileName="ball_green_icon.bmp" Type="BITMAP" ResourceName="BALL_GREEN_ICON"/>
+      </Resources>
     </General>
+    <VersionInfo>
+      <UseVersionInfo Value="True"/>
+      <AutoIncrementBuild Value="True"/>
+      <RevisionNr Value="1"/>
+    </VersionInfo>
     <BuildModes>
       <Item Name="Default" Default="True"/>
     </BuildModes>
