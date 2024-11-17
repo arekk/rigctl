@@ -33,7 +33,5 @@ begin
   Application.CreateForm(TFormSpert, FormSpert);
   Application.CreateForm(TFormSettings, FormSettings);
 
-  FormInit.PostInit;
-
   Application.Run;
 end.

@@ -13,7 +13,6 @@
         <TextName Value=""/>
         <TextDesc Value=""/>
       </XPManifest>
-      <Icon Value="0"/>
       <Resources Count="2">
         <Resource_0 FileName="ball_blue_icon.bmp" Type="BITMAP" ResourceName="BALL_BLUE_ICON"/>
         <Resource_1 FileName="ball_green_icon.bmp" Type="BITMAP" ResourceName="BALL_GREEN_ICON"/>
@@ -35,6 +34,9 @@
       <FormatVersion Value="2"/>
     </RunParams>
     <RequiredPackages>
+      <Item>
+        <PackageName Value="SQLDBLaz"/>
+      </Item>
       <Item>
         <PackageName Value="indylaz"/>
       </Item>
@@ -136,6 +138,16 @@
         <IsPartOfProject Value="True"/>
         <UnitName Value="UnitRig"/>
       </Unit>
+      <Unit>
+        <Filename Value="unitserialportautodiscover.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="UnitSerialPortAutoDiscover"/>
+      </Unit>
+      <Unit>
+        <Filename Value="unitlog.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="UNitLog"/>
+      </Unit>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -147,6 +159,11 @@
       <IncludeFiles Value="$(ProjOutDir)"/>
       <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
+    <CodeGeneration>
+      <Optimizations>
+        <OptimizationLevel Value="2"/>
+      </Optimizations>
+    </CodeGeneration>
     <Linking>
       <Debugging>
         <DebugInfoType Value="dsDwarf3"/>

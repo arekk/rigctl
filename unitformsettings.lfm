@@ -7,6 +7,7 @@ object FormSettings: TFormSettings
   ClientHeight = 516
   ClientWidth = 398
   OnClose = FormClose
+  OnCreate = FormCreate
   OnShow = FormShow
   LCLVersion = '3.7.0.0'
   object GroupBox1: TGroupBox
@@ -25,8 +26,8 @@ object FormSettings: TFormSettings
       Left = 0
       Height = 18
       Top = 0
-      Width = 62
-      Caption = 'debug'
+      Width = 64
+      Caption = 'Debug'
       TabOrder = 0
     end
   end
@@ -51,17 +52,17 @@ object FormSettings: TFormSettings
   end
   object GroupBox2: TGroupBox
     Left = 0
-    Height = 95
+    Height = 103
     Top = 55
     Width = 398
     Align = alTop
     AutoSize = True
     Caption = 'SPert'
-    ClientHeight = 68
+    ClientHeight = 76
     ClientWidth = 388
     TabOrder = 2
     object ComboBox2: TComboBox
-      Left = 90
+      Left = 96
       Height = 20
       Top = 24
       Width = 280
@@ -79,14 +80,14 @@ object FormSettings: TFormSettings
     object Label1: TLabel
       Left = 0
       Height = 16
-      Top = 48
+      Top = 56
       Width = 87
       Caption = 'Fan on startup'
     end
     object ComboBox1: TComboBox
-      Left = 90
+      Left = 96
       Height = 20
-      Top = 48
+      Top = 56
       Width = 108
       ItemHeight = 19
       Items.Strings = (
@@ -110,13 +111,13 @@ object FormSettings: TFormSettings
   end
   object GroupBox3: TGroupBox
     Left = 0
-    Height = 96
-    Top = 150
+    Height = 104
+    Top = 158
     Width = 398
     Align = alTop
     AutoSize = True
-    Caption = 'FTdx10'
-    ClientHeight = 69
+    Caption = 'TRX'
+    ClientHeight = 77
     ClientWidth = 388
     TabOrder = 3
     object Label3: TLabel
@@ -127,53 +128,63 @@ object FormSettings: TFormSettings
       Caption = 'Serial port'
     end
     object ComboBox3: TComboBox
-      Left = 90
+      Left = 91
       Height = 20
-      Top = 16
+      Top = 24
       Width = 280
-      ItemHeight = 19
+      ItemHeight = 26
       ReadOnly = True
+      Style = csDropDownList
       TabOrder = 0
     end
     object CheckBox2: TCheckBox
-      Left = 0
+      Left = 5
       Height = 18
-      Top = 48
+      Top = 56
       Width = 148
       Caption = 'FLRIG server enabled'
       TabOrder = 1
     end
     object Label4: TLabel
-      Left = 168
+      Left = 160
       Height = 16
-      Top = 50
+      Top = 58
       Width = 106
       Caption = 'FLRIG server port'
     end
     object SpinEdit1: TSpinEdit
-      Left = 284
+      Left = 283
       Height = 21
-      Top = 48
+      Top = 56
       Width = 86
       TabOrder = 2
     end
-    object CheckBox4: TCheckBox
-      Left = 0
+    object ComboBox4: TComboBox
+      Left = 91
       Height = 18
       Top = 0
-      Width = 72
-      Caption = 'Enabled'
+      Width = 143
+      ItemHeight = 26
+      ReadOnly = True
+      Style = csDropDownList
       TabOrder = 3
+    end
+    object Label6: TLabel
+      Left = 0
+      Height = 16
+      Top = 0
+      Width = 37
+      Caption = 'Model'
     end
   end
   object GroupBox4: TGroupBox
     Left = 0
-    Height = 222
-    Top = 246
+    Height = 206
+    Top = 262
     Width = 398
     Align = alClient
     Caption = 'Macros'
-    ClientHeight = 195
+    ClientHeight = 179
     ClientWidth = 388
     TabOrder = 4
     object CheckBox5: TCheckBox
@@ -192,11 +203,25 @@ object FormSettings: TFormSettings
       Caption = 'Set TRX power before SPert ATU tune'
     end
     object SpinEdit2: TSpinEdit
-      Left = 256
+      Left = 288
       Height = 21
       Top = 19
-      Width = 86
+      Width = 78
       TabOrder = 1
+    end
+    object SpinEdit3: TSpinEdit
+      Left = 288
+      Height = 21
+      Top = 47
+      Width = 78
+      TabOrder = 2
+    end
+    object Label7: TLabel
+      Left = 5
+      Height = 16
+      Top = 48
+      Width = 270
+      Caption = 'Lock SPert when estimated SWR higher than'
     end
   end
 end

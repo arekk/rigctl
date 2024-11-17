@@ -12,6 +12,10 @@ uses
 
 type
 
+  TSettingsTrx = class
+    const FTDX10 = 'FTdx10';
+  end;
+
   TSettings = record
     debug: Boolean;
 
@@ -20,8 +24,9 @@ type
     spertPort: String;
     spertPortRate: Integer;
     spertPool: Integer;
+    spertAntenna: String;
 
-    trxEnabled: Boolean;
+    trx: String;
     trxPort: String;
     trxPortRate: Integer;
     trxPool: Integer;
@@ -29,8 +34,9 @@ type
     flrigServerEnabled: Boolean;
     flrigServerPort: Integer;
 
-    TrxTunePower: Integer;
-    AtuOffOnBandChange: Boolean;
+    spertLockOnSwr: Integer;
+    trxTunePower: Integer;
+    atuOffOnBandChange: Boolean;
 
     macroModeA: Boolean;
     macroModeAMod: String;
@@ -46,31 +52,43 @@ type
   TConfiguration = class
     procedure Load;
     procedure Save;
+    function IsTrxValid:Boolean;
 
     public
       constructor Create(applicationLocation: String);
+      function getConfigDirectory: String;
+    public
+      Settings: TSettings;
     private
       iniMutex: TCriticalSection;
-    public
+      configDirectory: String;
       iniPath: String;
-      Settings: TSettings;
   end;
 
 implementation
 
 constructor TConfiguration.Create(applicationLocation: String);
-var iniDir: String;
 begin
   {$IFDEF DARWIN}
-  iniDir:=GetUserDir + PathDelim + '.config' + PathDelim + 'radioshackctl';
-  if (not DirectoryExists(iniDir)) then CreateDir(iniDir);
+  configDirectory:=GetUserDir + PathDelim + '.config' + PathDelim + 'radioshackctl';
+  if (not DirectoryExists(configDirectory)) then CreateDir(configDirectory);
   {$ELSE}
-  iniDir:=ExtractFilePath(applicationLocation);
+  configDirectory:=ExtractFilePath(applicationLocation);
   {$ENDIF}
 
-  iniPath:=iniDir + PathDelim + 'radioshackctl.ini';
+  iniPath:=configDirectory + PathDelim + 'radioshackctl.ini';
 
   iniMutex:=TCriticalSection.Create;
+end;
+
+function TConfiguration.IsTrxValid:Boolean;
+begin
+   Result:=(Settings.trx = TSettingsTrx.FTDX10);
+end;
+
+function TConfiguration.getConfigDirectory:String;
+begin
+  Result:=configDirectory;
 end;
 
 procedure TConfiguration.Load;
@@ -87,17 +105,19 @@ begin
     Settings.spertPortRate:=iniFile.ReadInteger('SPert', 'PortRate', 9600);
     Settings.spertPool:=iniFile.ReadInteger('SPert', 'Pool', 200);
     Settings.spertStartupFan:=iniFile.ReadInteger('SPert', 'DefaultFan', 0);
+    Settings.spertAntenna:=iniFile.ReadString('SPert', 'Antenna', 'Default');
 
-    Settings.trxEnabled:=iniFile.ReadBool('FTdx10', 'Enabled', true);
-    Settings.trxPort:=iniFile.ReadString('FTdx10', 'Port', 'AUTO');
-    Settings.trxPortRate:=iniFile.ReadInteger('FTdx10', 'PortRate', 38400);
-    Settings.trxPool:=iniFile.ReadInteger('FTdx10', 'Pool', 200);
+    Settings.trx:=iniFile.ReadString('Trx', 'Model', '');
+    Settings.trxPort:=iniFile.ReadString('Trx', 'Port', 'AUTO');
+    Settings.trxPortRate:=iniFile.ReadInteger('Trx', 'PortRate', 38400);
+    Settings.trxPool:=iniFile.ReadInteger('Trx', 'Pool', 200);
 
     Settings.flrigServerEnabled:=iniFile.ReadBool('FlrigServer', 'Enabled', false);
     Settings.flrigServerPort:=iniFile.ReadInteger('FlrigServer', 'Port', 12345);
 
-    Settings.TrxTunePower:=iniFile.ReadInteger('Macro', 'TrxTunePower', 0);
-    Settings.AtuOffOnBandChange:=iniFile.ReadBool('Macro', 'AtuOffOnBandChange', false);
+    Settings.trxTunePower:=iniFile.ReadInteger('Macro', 'TrxTunePower', 0);
+    Settings.atuOffOnBandChange:=iniFile.ReadBool('Macro', 'AtuOffOnBandChange', false);
+    Settings.spertLockOnSwr:=iniFile.ReadInteger('Macro', 'SpertLockOnSwr', 0);
 
     Settings.macroModeA:=iniFile.ReadBool('Macro', 'ModeA', false);
     Settings.macroModeAMod:=iniFile.ReadString('Macro', 'ModeA_Mod', '');
@@ -128,17 +148,20 @@ begin
     iniFile.WriteString('SPert', 'Port', Settings.spertPort);
     iniFile.WriteInteger('SPert', 'PortRate', Settings.spertPortRate);
     iniFile.WriteInteger('SPert', 'Pool', Settings.spertPool);
+    iniFile.WriteString('SPert', 'Antenna', Settings.spertAntenna);
 
-    iniFile.WriteBool('FTdx10', 'Enabled', Settings.trxEnabled);
-    iniFile.WriteString('FTdx10', 'Port', Settings.trxPort);
-    iniFile.WriteInteger('FTdx10', 'PortRate', Settings.trxPortRate);
-    iniFile.WriteInteger('FTdx10', 'Pool', Settings.trxPool);
+    iniFile.WriteString('Trx', 'Model', Settings.trx);
+    iniFile.WriteString('Trx', 'Port', Settings.trxPort);
+    iniFile.WriteInteger('Trx', 'PortRate', Settings.trxPortRate);
+    iniFile.WriteInteger('Trx', 'Pool', Settings.trxPool);
 
     iniFile.WriteBool('FlrigServer', 'Enabled', Settings.flrigServerEnabled);
     iniFIle.WriteInteger('FlrigServer', 'Port', Settings.flrigServerPort);
 
-    iniFile.WriteInteger('Macro', 'TrxTunePower', Settings.TrxTunePower);
-    iniFile.WriteBool('Macro', 'AtuOffOnBandChange', Settings.AtuOffOnBandChange);
+    iniFile.WriteInteger('Macro', 'TrxTunePower', Settings.trxTunePower);
+    iniFile.WriteBool('Macro', 'AtuOffOnBandChange', Settings.atuOffOnBandChange);
+    iniFile.WriteInteger('Macro', 'SpertLockOnSwr', Settings.spertLockOnSwr);
+
 
     iniFile.WriteBool('Macro', 'ModeA', Settings.macroModeA);
     iniFile.WriteString('Macro', 'ModeA_Mod', Settings.macroModeAMod);

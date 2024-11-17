@@ -4,12 +4,12 @@ object FormRig: TFormRig
   Top = 358
   Width = 331
   BorderStyle = bsSingle
-  Caption = 'FTdx10'
   ClientHeight = 290
   ClientWidth = 331
   KeyPreview = True
   OnClose = FormClose
   OnCreate = FormCreate
+  OnDestroy = FormDestroy
   OnKeyDown = FormKeyDown
   OnShow = FormShow
   LCLVersion = '3.7.0.0'

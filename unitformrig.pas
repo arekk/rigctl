@@ -20,6 +20,7 @@ uses
   ComCtrls,
   Buttons,
   StrUtils,
+
   UnitSettings,
   UnitFlrigServer,
   UnitRig,
@@ -72,7 +73,7 @@ type
     procedure BitBtnSplitMinusClick(Sender: TObject);
     procedure BitBtnSplitPlusClick(Sender: TObject);
     procedure BitBtnTXWClick(Sender: TObject);
-    procedure ReloadConfiguration;
+    procedure FormDestroy(Sender: TObject);
     procedure BitBtnDNFClick(Sender: TObject);
     procedure BitBtnDNRClick(Sender: TObject);
     procedure BitBtnVOXClick(Sender: TObject);
@@ -97,15 +98,18 @@ type
     procedure Timer1Timer(Sender: TObject);
     procedure TrackBarPwrChange(Sender: TObject);
     procedure TrackBarDgainChange(Sender: TObject);
-  private
-    function RigFrequencyToCaption(frq: LongWord): String;
-  public
-    Rig: TRig;
+
   private
     Configuration: TConfiguration;
     FlRigServer: TFlrigServer;
     picBallGreen: TBitmap;
     picBallBlue: TBitmap;
+  private
+    function RigFrequencyToCaption(frq: LongWord): String;
+  public
+    Rig: TRig;
+  public
+    procedure ReloadConfiguration(restartTrx: Boolean; restartFlrig: Boolean);
   end;
 
 var
@@ -119,20 +123,20 @@ implementation
 
 procedure TFormRig.FormCreate(Sender: TObject);
 begin
-   Configuration:=TConfiguration.Create(Application.Location);
-   Configuration.Load;
+  Configuration:=TConfiguration.Create(Application.Location);
+  Configuration.Load;
 
-   Visible:=Configuration.Settings.trxEnabled;
+  // curently ony FTdx10 is supported
+  Rig:=TFTdx10rig.Create(Configuration);
 
-   // curently ony FTdx10 is supported
-   Rig:=TFTdx10rig.Create(Configuration);
+  FlRigServer:=TFlrigServer.Create(Configuration, Rig);
 
-   FlRigServer:=TFlrigServer.Create(Configuration, Rig);
+  picBallGreen:=TBitMap.Create;
+  picBallGreen.LoadFromResourceName(HInstance, 'BALL_GREEN_ICON');
+  picBallBlue:=TBitMap.Create;
+  picBallBlue.LoadFromResourceName(HInstance, 'BALL_BLUE_ICON');
 
-   picBallGreen:=TBitMap.Create;
-   picBallGreen.LoadFromResourceName(HInstance, 'BALL_GREEN_ICON');
-   picBallBlue:=TBitMap.Create;
-   picBallBlue.LoadFromResourceName(HInstance, 'BALL_BLUE_ICON');
+  Caption:='TRX';
 end;
 
 procedure TFormRig.FormShow(Sender: TObject);
@@ -164,6 +168,12 @@ begin
   CloseAction:=caHide;
 end;
 
+procedure TFormRig.FormDestroy(Sender: TObject);
+begin
+  FlRigServer.Stop;
+  Rig.Stop;
+end;
+
 procedure TFormRig.FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
 var
   ssCmd: TShiftStateEnum;
@@ -174,7 +184,7 @@ begin
   ssCmd := ssCtrl
   {$ENDIF}
 
-  if (ssCmd in Shift) then begin
+  if Rig.isActive and (ssCmd in Shift) then begin
     case Key of
       VK_BACK: if BitBtnVOX.Enabled then BitBtnVOXClick(Sender);
 
@@ -204,128 +214,131 @@ end;
 
 procedure TFormRig.Button11Click(Sender: TObject);
 begin
-  Rig.SetPwr(5);
+  if Rig.isActive then Rig.SetPwr(5);
 end;
 
 procedure TFormRig.Button12Click(Sender: TObject);
 begin
- Rig.SetPwr(25);
+ if Rig.isActive then Rig.SetPwr(25);
 end;
 
 procedure TFormRig.Button13Click(Sender: TObject);
 begin
-  Rig.SetdrPortGain(30);
+  if Rig.isActive then Rig.SetdrPortGain(30);
 end;
 
 procedure TFormRig.Button14Click(Sender: TObject);
 begin
-  Rig.SetdrPortGain(50);
+  if Rig.isActive then Rig.SetdrPortGain(50);
 end;
 
 procedure TFormRig.TrackBarPwrChange(Sender: TObject);
 begin
-  if (TrackBarPwr.Position >= 5) and (TrackBarPwr.Position <= 100) then Rig.SetPwr(TrackBarPwr.Position);
+  if Rig.isActive and TrackBarPwr.Enabled and (TrackBarPwr.Position >= 5) and (TrackBarPwr.Position <= 100) then Rig.SetPwr(TrackBarPwr.Position);
   LabelPwr.Caption:='Power ' + IntToStr(TrackBarPwr.Position);
 end;
 
 procedure TFormRig.TrackBarDgainChange(Sender: TObject);
 begin
-   if (TrackBarDgain.Position >= 0) and (TrackBarDgain.Position <= 100) then Rig.SetdrPortGain(TrackBarDgain.Position);
+   if Rig.isActive and TrackBarDgain.Enabled and (TrackBarDgain.Position >= 0) and (TrackBarDgain.Position <= 100) then Rig.SetdrPortGain(TrackBarDgain.Position);
    LabelDgain.Caption:='Digital gain ' + IntToStr(TrackBarDgain.Position);
 end;
 
 procedure TFormRig.BitBtnDNFClick(Sender: TObject);
 begin
-  Rig.toggleDnf;
+  if Rig.isActive then Rig.toggleDnf;
 end;
 
 procedure TFormRig.BitBtnDNRClick(Sender: TObject);
 begin
-  Rig.toggleDnr;
+  if Rig.isActive then Rig.toggleDnr;
 end;
 
 procedure TFormRig.BitBtnVOXClick(Sender: TObject);
 begin
-  Rig.toggleVox;
+  if Rig.isActive then Rig.toggleVox;
 end;
 
 procedure TFormRig.BitBtnSplitClick(Sender: TObject);
 begin
-  if Rig.splitActive then begin
-    { split off - set VFO B to VFO A}
-    Rig.SetVfoB_frq(Rig.getVfoA_frq);
-    Rig.SetSplit(False);
-  end else begin
-    { split on - set quick split +5 }
-    Rig.SetVfoB_mode(Rig.getVfoA_mode);
-    Rig.SetVfoB_frq(Rig.getVfoA_frq + 5000);
-    Rig.SetSplit(True);
+  if Rig.isActive and not Rig.pttActive then
+  begin
+    if Rig.splitActive then begin
+      { split off - set VFO B to VFO A}
+      Rig.SetVfoB_frq(Rig.getVfoA_frq);
+      Rig.SetSplit(False);
+    end else begin
+      { split on - set quick split +5 }
+      Rig.SetVfoB_mode(Rig.getVfoA_mode);
+      Rig.SetVfoB_frq(Rig.getVfoA_frq + 5000);
+      Rig.SetSplit(True);
+    end;
   end;
 end;
 
 procedure TFormRig.BitBtnSplitMinusClick(Sender: TObject);
 begin
-  Rig.SetVfoB_frq(Rig.getVfoB_frq - 5000);
+  if Rig.isActive and not Rig.pttActive then Rig.SetVfoB_frq(Rig.getVfoB_frq - 5000);
 end;
 
 procedure TFormRig.BitBtnSplitPlusClick(Sender: TObject);
 begin
-  Rig.SetVfoB_frq(Rig.getVfoB_frq + 5000);
+  if Rig.isActive and not Rig.pttActive then Rig.SetVfoB_frq(Rig.getVfoB_frq + 5000);
 end;
 
 procedure TFormRig.BitBtnTXWClick(Sender: TObject);
 begin
-  Rig.toggleTxw;
+  if Rig.isActive and not Rig.pttActive then Rig.toggleTxw;
 end;
 
 procedure TFormRig.Button1Click(Sender: TObject);
 begin
-   Rig.SetBand_40;
+   if Rig.isActive and not Rig.pttActive then Rig.SetBand_40;
 end;
 
 procedure TFormRig.Button10Click(Sender: TObject);
 begin
-  Rig.SetBand_80;
+  if Rig.isActive and not Rig.pttActive then Rig.SetBand_80;
 end;
 
 procedure TFormRig.Button2Click(Sender: TObject);
 begin
-  Rig.SetBand_30
+  if Rig.isActive and not Rig.pttActive then Rig.SetBand_30
 end;
 
 procedure TFormRig.Button3Click(Sender: TObject);
 begin
-  Rig.SetBand_20
+  if Rig.isActive and not Rig.pttActive then Rig.SetBand_20
 end;
 
 procedure TFormRig.Button4Click(Sender: TObject);
 begin
-  Rig.SetBand_17
+  if Rig.isActive and not Rig.pttActive then Rig.SetBand_17
 end;
 
 procedure TFormRig.Button5Click(Sender: TObject);
 begin
-  Rig.SetBand_15
+  if Rig.isActive and not Rig.pttActive then Rig.SetBand_15
 end;
 
 procedure TFormRig.Button6Click(Sender: TObject);
 begin
-  Rig.SetBand_12
+  if Rig.isActive and not Rig.pttActive then Rig.SetBand_12
 end;
 
 procedure TFormRig.Button7Click(Sender: TObject);
 begin
-  Rig.SetBand_10
+  if Rig.isActive and not Rig.pttActive then Rig.SetBand_10
 end;
 
 procedure TFormRig.Button8Click(Sender: TObject);
 begin
-  Rig.SetBand_160
+  if Rig.isActive and not Rig.pttActive then Rig.SetBand_160
 end;
 
 procedure TFormRig.Button9Click(Sender: TObject);
 begin
-  Rig.SetBand_6
+  if Rig.isActive and not Rig.pttActive then Rig.SetBand_6
 end;
 
 function TFormRig.RigFrequencyToCaption(frq: LongWord): String;
@@ -343,11 +356,12 @@ procedure TFormRig.Timer1Timer(Sender: TObject);
 var
   frqDelta: Double;
 begin
+  BeginFormUpdate;
+
   { rig is connected }
   if Rig.isActive then
   begin
     GroupBox1.Enabled:=True;
-    GroupBox2.Enabled:=True;
     GroupBox3.Enabled:=True;
 
     StatusBar1.Panels.Items[0].Text:='  ' + IntToStr(Rig.getBand) + 'M';
@@ -358,7 +372,6 @@ begin
 
     PanelVfoMode.Caption:=Rig.getMode;
     PanelVfoMode.Color:=clGreen;
-
 
     // RX buttons
     if Rig.voxActive
@@ -424,6 +437,8 @@ begin
     { RX }
     if not Rig.pttActive then
     begin
+      GroupBox2.Enabled:=True;
+
       PanelPwr.Color:=clGray;
       PanelSwr.Color:=clGray;
 
@@ -435,6 +450,8 @@ begin
     { TX }
     if Rig.pttActive then
     begin
+      GroupBox2.Enabled:=False;
+
       // pwr forwarded from trx
       PanelPwr.Color:=clRed;
       PanelPwr.Caption:=IntToStr(Rig.getFPwrMax);
@@ -466,15 +483,18 @@ begin
     PanelPwr.Color:=clGray;
     PanelPwr.Caption:='0';
   end;
+
+  EndFormUpdate;
 end;
 
-procedure TFormRig.ReloadConfiguration;
+procedure TFormRig.ReloadConfiguration(restartTrx: Boolean; restartFlrig: Boolean);
 begin
-   Configuration.Load;
-   FlRigServer.Stop;
-   Rig.Stop;
-   Rig.Start;
-   FlRigServer.Start;
+  Configuration.Load;
+
+  if restartFlrig then FlRigServer.Stop;
+  if restartTrx then Rig.Stop;
+  if restartTrx then Rig.Start;
+  if restartFlrig then FlRigServer.Start;
 end;
 
 end.

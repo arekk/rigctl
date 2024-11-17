@@ -5,38 +5,13 @@ unit UnitRig;
 interface
 
 uses
-  Classes,
-  SysUtils,
-  StrUtils,
-  LazSynaser,
-  Cthreads,
-  UnitFormDebug;
+  Classes;
 
 type
-  TRigPortDiscoverThread = class(TThread)
-    public
-      constructor Create(port: String; portRate: Integer; send: String; expect: String);
-      function getPort:String;
-
-    protected
-      procedure Execute; override;
-
-    private
-      fResult: Boolean;
-      fPort: String;
-      fPortRate: Integer;
-      fSend: String;
-      fExpect: String;
-  end;
-
-  TRigEvents = class
-    public
-      const BAND_CHANGE = 1;
-      const MODE_CHANGE = 2;
-  end;
+  TRigEventType = (RigEventBandChange, RigEventModeChange, RigEventTxStart, RigEventTxStop);
 
   TRigEvent = interface
-    procedure call(event: Byte);
+    procedure call(event: TRigEventType);
   end;
 
   TRig = interface
@@ -96,50 +71,5 @@ type
   end;
 
 implementation
-
-{ TPortDiscoverThread }
-
-constructor TRigPortDiscoverThread.Create(port: String; portRate: Integer; send: String; expect: String);
-begin
-  inherited Create(False);
-  FreeOnTerminate:=False;
-  fPort:=port;
-  fPortRate:=portRate;
-  fSend:=send;
-  fExpect:=expect;
-  fResult:=False;
-end;
-
-procedure TRigPortDiscoverThread.Execute;
-var
-  comport: TBlockSerial;
-  payload: String;
-begin
-  comport:=TBlockSerial.Create;
-  comport.LinuxLock:=False;
-  comport.NonBlock:=True;
-  comport.Connect(fPort);
-  comport.Config(fPortRate, 8, 'N', SB1, False, True);
-  FormDebug.Log('[Rig] PortDiscover - connection to ' + fPort +  ' -> ' + comport.LastErrorDesc + ' code: ' + Inttostr(comport.LastError));
-  if comport.LastError = 0 then
-  begin
-    comport.Purge;
-    comport.SendString(Utf8ToAnsi(fSend));
-    Sleep(1000);
-    while comport.WaitingData > 0 do begin
-      payload:=Trim(AnsiToUtf8(comport.RecvTerminated(10, ';')));
-      if ContainsText(payload, fExpect) then fResult:=True;
-    end;
-  end;
-  comport.Purge;
-  comport.CloseSocket;
-  FreeAndNil(comport);
-  Terminate;
-end;
-
-function TRigPortDiscoverThread.getPort:String;
-begin
-  if fResult then Result:=fPort else Result:='';
-end;
 
 end.

@@ -18,12 +18,12 @@ type
   { events on SPert that should do someething on rig }
   TSpertSpertEvent = class(TInterfacedObject, TSpertEvent)
     public
-      constructor Create(r: TRig; s: TSettings);
-      procedure call(event: Byte);
-
+      constructor Create(sp: TSpert; r: TRig; c: TConfiguration);
+      procedure call(event: TSpertEventType);
     private
+      Spert: TSpert;
       Rig: TRig;
-      Settings: TSettings;
+      Configuration: TConfiguration;
       trxTunePower: Byte;
       trxPowerSavePoint: Byte;
   end;
@@ -31,32 +31,37 @@ type
   { events on rig that should do somethong on SPert }
   TSpertRigEvent = class(TInterfacedObject, TRigEvent)
     public
-      constructor Create(sp: TSpert; r: TRig; se: TSettings);
-      procedure call(event: Byte);
+      constructor Create(sp: TSpert; r: TRig; c: TConfiguration);
+      procedure call(event: TRigEventType);
     private
       Spert: TSpert;
       Rig: TRig;
-      Settings: TSettings;
+      Configuration: TConfiguration;
   end;
 
 implementation
 
-constructor TSpertSpertEvent.Create(r: TRig; s: TSettings);
+constructor TSpertSpertEvent.Create(sp: TSpert; r: TRig; c: TConfiguration);
 begin
+  Spert:=sp;
   Rig:=r;
-  Settings:=s;
-  trxTunePower:=Settings.TrxTunePower;
+  Configuration:=c;
+
+  trxTunePower:=Configuration.Settings.TrxTunePower;
   trxPowerSavePoint:=0;
 end;
 
-procedure TSpertSpertEvent.call(event: Byte);
+procedure TSpertSpertEvent.call(event: TSpertEventType);
+var
+  enumVal: String;
 begin
-  FormDebug.Log('[Spert] event: ' + IntToStr(event));
+  WriteStr(enumVal, event);
+  FormDebug.Log('[Spert] event ' + enumVal);
 
   if Assigned(Rig) and Rig.isActive then
   begin
     case event of
-      TSpertEvents.BEFORE_TUNE_START: begin
+      SpertEventBeforeTuneStart: begin
         { ATU tunning can set TRX power to 5W }
         if (trxTunePower > 0) and (trxPowerSavePoint = 0) and (not Rig.pttActive) then
         begin
@@ -66,9 +71,9 @@ begin
         end;
       end;
 
-      TSpertEvents.AFTER_TUNE_END: begin
+      SpertEventAtferTuneStop: begin
         { restore trx power if atu stopped tuning }
-        if (trxPowerSavePoint > 0) then
+        if (trxPowerSavePoint > 0) and not Spert.txActive and not Spert.isAtuTunning then
         begin
           FormDebug.Log('[Spert] restoring trx power: ' + IntToStr(trxPowerSavePoint));
           Rig.SetPwr(trxPowerSavePoint);
@@ -79,45 +84,44 @@ begin
   end;
 end;
 
-constructor TSpertRigEvent.Create(sp: TSpert; r: TRig; se: TSettings);
+constructor TSpertRigEvent.Create(sp: TSpert; r: TRig; c: TConfiguration);
 begin
   Spert:=sp;
   Rig:=r;
-  Settings:=se;
+  Configuration:=c;
 end;
 
-procedure TSpertRigEvent.call(event: Byte);
+procedure TSpertRigEvent.call(event: TRigEventType);
+var
+  enumVal: String;
 begin
-  FormDebug.Log('[Rig] event: ' + IntToStr(event));
+  WriteStr(enumVal, event);
+  FormDebug.Log('[Rig] event ' + enumVal);
 
   if Assigned(Spert) and Spert.isActive then begin
     case event of
-      TRigEvents.BAND_CHANGE: begin
-        if Settings.AtuOffOnBandChange and Spert.isAtuActive then Spert.toggleAtuState;
+      RigEventBandChange: begin
+        if Configuration.Settings.AtuOffOnBandChange and Spert.isAtuActive then Spert.toggleAtuState;
       end;
 
-      TRigEvents.MODE_CHANGE: begin
-        if Settings.macroModeA and ContainsText(Settings.macroModeAMod, Rig.getMode) and (Settings.macroModeASpertPwr > 0)
-          then Spert.setPower(Round(Settings.macroModeASpertPwr / 10));
+      RigEventModeChange: begin
+        if Configuration.Settings.macroModeA and ContainsText(Configuration.Settings.macroModeAMod, Rig.getMode) and (Configuration.Settings.macroModeASpertPwr > 0)
+          then Spert.setPower(Round(Configuration.Settings.macroModeASpertPwr / 10));
 
-        if Settings.macroModeB and ContainsText(Settings.macroModeBMod, Rig.getMode) and (Settings.macroModeBSpertPwr > 0)
-          then Spert.setPower(Round(Settings.macroModeBSpertPwr / 10));
+        if Configuration.Settings.macroModeB and ContainsText(Configuration.Settings.macroModeBMod, Rig.getMode) and (Configuration.Settings.macroModeBSpertPwr > 0)
+          then Spert.setPower(Round(Configuration.Settings.macroModeBSpertPwr / 10));
       end;
     end;
   end;
 
   if Assigned(Rig) and Rig.isActive then begin
     case event of
-      TRigEvents.BAND_CHANGE: begin
+      RigEventModeChange: begin
+        if Configuration.Settings.macroModeA and ContainsText(Configuration.Settings.macroModeAMod, Rig.getMode) and (Configuration.Settings.macroModeATrxPwr > 0)
+          then Rig.SetPwr(Configuration.Settings.macroModeATrxPwr);
 
-      end;
-
-      TRigEvents.MODE_CHANGE: begin
-        if Settings.macroModeA and ContainsText(Settings.macroModeAMod, Rig.getMode) and (Settings.macroModeATrxPwr > 0)
-          then Rig.SetPwr(Settings.macroModeATrxPwr);
-
-        if Settings.macroModeB and ContainsText(Settings.macroModeBMod, Rig.getMode) and (Settings.macroModeBTrxPwr > 0)
-          then Rig.SetPwr(Settings.macroModeBTrxPwr);
+        if Configuration.Settings.macroModeB and ContainsText(Configuration.Settings.macroModeBMod, Rig.getMode) and (Configuration.Settings.macroModeBTrxPwr > 0)
+          then Rig.SetPwr(Configuration.Settings.macroModeBTrxPwr);
       end;
     end;
   end;

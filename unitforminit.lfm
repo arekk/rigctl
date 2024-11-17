@@ -7,9 +7,10 @@ object FormInit: TFormInit
   Caption = 'RadioShackCtl'
   Menu = MainMenu1
   OnCreate = FormCreate
+  OnShow = FormShow
   LCLVersion = '3.7.0.0'
   object MainMenu1: TMainMenu
-    Left = 140
+    Left = 144
     Top = 20
     object MenuItem4: TMenuItem
       Caption = 'Window'
@@ -33,12 +34,43 @@ object FormInit: TFormInit
         Caption = 'Application'
         OnClick = MenuItem2Click
       end
+      object Separator1: TMenuItem
+        Caption = '-'
+        Enabled = False
+      end
+      object MenuItem10: TMenuItem
+        Caption = 'SPert fan'
+        object MenuItem9: TMenuItem
+          Caption = '50%'
+          OnClick = MenuItem9Click
+        end
+        object MenuItem12: TMenuItem
+          Caption = 'Max'
+          OnClick = MenuItem12Click
+        end
+        object MenuItem13: TMenuItem
+          Caption = 'Histeresis'
+          OnClick = MenuItem13Click
+        end
+        object MenuItem14: TMenuItem
+          Caption = 'Fixed'
+          OnClick = MenuItem14Click
+        end
+      end
+      object MenuItem11: TMenuItem
+        Caption = 'Reset SPert ATU memories'
+        OnClick = MenuItem11Click
+      end
     end
     object MenuItem3: TMenuItem
       Caption = 'Help'
       object MenuItem8: TMenuItem
         Caption = 'Keyboard shortcuits'
         OnClick = MenuItem8Click
+      end
+      object MenuItem15: TMenuItem
+        Caption = 'About'
+        OnClick = MenuItem15Click
       end
     end
   end

@@ -12,19 +12,18 @@ uses
   StrUtils,
   LazSynaser,
   Syncobjs,
+  UnitSerialPortAutoDiscover,
   UnitSettings,
   UnitFormDebug;
 
 type
-  TSpertEvents = class
-    public
-      const BEFORE_TUNE_START = 1;
-      const AFTER_TUNE_END = 2;
-  end;
+  TSpertEventType = (SpertEventBeforeTuneStart, SpertEventAtferTuneStop, SpertEventTxStart, SpertEventTxStop);
 
   TSpertEvent = interface
-    procedure call(event: Byte);
+    procedure call(event: TSpertEventType);
   end;
+
+  TSpertFanLevel = (SpertFanLevel_Undef, SpertFanLevel_50, SpertFanLevel_Max, SpertFanLevel_Histeresis, SpertFanLevel_Fixed);
 
   TSpertState = class
     public
@@ -43,12 +42,13 @@ type
       atuActive: Boolean;
       atuColor: String;
       atuTune: Boolean;
+      fan: TSpertFanLevel;
       version: String;
-      onEvent: TSpertEvent;
       fpwrSum: Integer;
       fpwrCnt: Integer;
       rpwrSum: Integer;
       rpwrCnt: Integer;
+      txLocked: Boolean;
   end;
 
   TSpertPayloadSuspend = class
@@ -57,19 +57,44 @@ type
   end;
 
   TSpert = class
+    private
+      running: Boolean;
+      configuration: TConfiguration;
+      autoDiscover: TSerialPortDiscover;
+      autoDiscoverLockFile: String;
+      spertState: TSpertState;
+      comportMutex: TCriticalSection;
+      timerKeepAlive: TTimer;
+      comportConnected: Boolean;
+      comport: TBlockSerial;
+      comportLastCommTs: Integer;
+      timerRead: TTimer;
+      ignorePayload: TSpertPayloadSuspend;
+      onEvent: TSpertEvent;
+    private
+      procedure onTimerKeepAlive(Sender: TObject);
+      procedure onPortDiscover(Sender: TObject);
+      procedure onPortDiscoverFinish(Sender: TObject);
+      procedure Connect(port: String);
+      procedure onTimerRead(Sender: TObject);
+      procedure Read;
+      procedure Send(cmd: String);
+      procedure ProcessCmd(cmd: String);
+      function extractInt(cmd: String; prefix: String): Integer;
+      procedure Disconnect;
+    public
+      const COMPORT_DELIM = AnsiString(#13) + AnsiString(#10);
     public
       constructor Create(Config: TConfiguration);
       destructor Destroy; override;
-
       procedure setEventHandler(handler: TSpertEvent);
-
       procedure Start;
       procedure Stop;
-
       procedure toggleAtuState;
+      procedure txLockOn;
+      procedure txLockOff;
       procedure setPower(pwr: Integer);
       procedure tuneAtu;
-
       function isActive:Boolean;
       function getPwr: Word;
       function getBand: String;
@@ -79,35 +104,19 @@ type
       function getFpwrAvg: Integer;
       function getFpwrCur: Integer;
       function getRpwrAvgPercent: Double;
+      function isTxLocked: Boolean;
       function isAtuPresent: Boolean;
       function isAtuActive: Boolean;
       function getAtuColor: String;
       function isAtuTunning: Boolean;
       function getVersion: String;
-    private
-      configuration: TConfiguration;
-      spertState: TSpertState;
-      comportMutex: TCriticalSection;
-      comport: TBlockSerial;
-      comportConnected: Boolean;
-      comportLastCommTs: Integer;
-      timerKeepAlive: TTimer;
-      timerRead: TTimer;
-      ignorePayload: TSpertPayloadSuspend;
-    private
-      procedure onTimerKeepAlive(Sender: TObject);
-      procedure Connect(port: String);
-      procedure onTimerRead(Sender: TObject);
-      procedure Read;
-      procedure Send(cmd: String);
-      procedure ProcessCmd(cmd: String);
-      function extractInt(cmd: String; prefix: String): Integer;
-      procedure Disconnect;
-    end;
+      function getFan: TSpertFanLevel;
+      procedure setFan(fan: TSpertFanLevel);
+      procedure resetAtuMem;
+  end;
 
 implementation
 
-{ TSpertEvent }
 
 { TSpertState }
 
@@ -127,73 +136,83 @@ begin
   atuColor:='GREY';
   atuTune:=False;
   version:='';
-  onEvent:=nil;
+  fan:=SpertFanLevel_Undef;
+  txLocked:=False;
 end;
 
 { TSpert }
 
 constructor TSpert.Create(Config: TConfiguration);
 begin
-  timerKeepAlive:=TTimer.Create(nil);
-  timerKeepAlive.Enabled:=False;
+  configuration:=Config;
 
-  Configuration:=Config;
-
-  comportMutex:=TCriticalSection.Create;
+  autoDiscover:=TSerialPortDiscover.Create(configuration.getConfigDirectory);
+  autoDiscoverLockFile:='';
 
   spertState:=TSpertState.Create;
   spertState.active:=False;
+
+  comportMutex:=TCriticalSection.Create;
+
+  timerKeepAlive:=TTimer.Create(nil);
+  timerKeepAlive.Enabled:=False;
 
   comportConnected:=False;
 end;
 
 procedure TSpert.setEventHandler(handler: TSpertEvent);
 begin
-  spertState.onEvent:=handler;
+  onEvent:=handler;
 end;
 
 procedure TSpert.Start;
 begin
-  if not timerKeepAlive.Enabled then
-  begin
-    timerKeepAlive:=TTimer.Create(nil);
-    timerKeepAlive.Interval:=1000;
-    timerKeepAlive.OnTimer:=@onTimerKeepAlive;
-    timerKeepAlive.Enabled:=True;
-  end;
+  running:=True;
+
+  timerKeepAlive:=TTimer.Create(nil);
+  timerKeepAlive.Interval:=1000;
+  timerKeepAlive.OnTimer:=@onTimerKeepAlive;
+  timerKeepAlive.Enabled:=True;
 end;
 
 procedure TSpert.onTimerKeepAlive(Sender: TObject);
-var
-  searchResult: TSearchRec;
-  port: String;
 begin
-  if not comportConnected then begin
-    port:=Configuration.Settings.spertPort;
+  FormDebug.Log('[Spert] connection: ' + BoolToStr(comportConnected, True));
 
-    if port='AUTO' then
+  if not comportConnected then begin
+    if configuration.Settings.spertPort = 'AUTO' then
     begin
-      if FindFirst('/dev/tty.usbserial-*', faAnyFile, searchResult) = 0 then
-      begin
-        repeat begin
-          port:='/dev/' + searchResult.Name;
-          FormDebug.Log('[Spert] discovered port ' + port);
-          Break;
-        end until FindNext(searchResult) <> 0;
-        FindClose(searchResult);
-      end;
+      autoDiscover.OnSuccess:=@onPortDiscover;
+      autoDiscover.OnFinish:=@onPortDiscoverFinish;
+      if autoDiscover.Discover(TSerialPortDiscoverParams.Create('SPert', Configuration.Settings.spertPortRate, COMPORT_DELIM, Utf8ToAnsi('PA?'), Utf8ToAnsi('PA_SP7SP'))) > 0
+        then timerKeepAlive.Enabled:=False;
+    end
+    else
+    begin
+      autoDiscoverLockFile:=autoDiscover.LockPort(configuration.Settings.spertPort);
+      Connect(configuration.Settings.spertPort);
     end;
-    if port <> 'AUTO'
-      then Connect(port)
-      else  FormDebug.Log('[Spert] port not discovered');
   end;
 
   // ping every 1s to check is connection still alive
-  if comportConnected then Send('PA?');
+  // we don't need to ask about current status of amplifier because device will send any update made physically
+  if comportConnected
+    then Send('PA?');
 
   // checking timestamp of last meessage read from SPert
   if comportConnected and spertState.active and ((comportLastCommTs + 5) <  DateTimeToUnix(Now()))
     then Disconnect
+end;
+
+procedure TSpert.onPortDiscover(Sender: TObject);
+begin
+  autoDiscoverLockFile:=TSerialPortDiscoverResult(Sender).LockFile;
+  if running then Connect(TSerialPortDiscoverResult(Sender).port);
+end;
+
+procedure TSpert.onPortDiscoverFinish(Sender: TObject);
+begin
+  timerKeepAlive.Enabled:=running;
 end;
 
 procedure TSpert.Connect(port: String);
@@ -202,7 +221,7 @@ begin
   begin
     comportMutex.Acquire;
     try
-      FormDebug.Log('[Spert] connecting to ' + Configuration.Settings.spertPort + ' at ' + IntToStr(Configuration.Settings.spertPortRate));
+      FormDebug.Log('[Spert] connecting to ' + port + ' at ' + IntToStr(Configuration.Settings.spertPortRate));
 
       comport:=TBlockSerial.Create;
       comport.LinuxLock:=False;
@@ -216,26 +235,19 @@ begin
       begin
         comportConnected:=true;
 
-        comport.Purge;
-
         { main timer handling periodic read from SPert serial port }
         timerRead:=TTimer.Create(nil);
         timerRead.Interval:=Configuration.Settings.spertPool;
         timerRead.OnTimer:=@onTimerRead;
         timerRead.Enabled:=True;
 
-        Send('???');
-        Read;
-        Send('ATU?');
-        Read;
+        // set fan if required
+        if (Configuration.Settings.spertStartupFan > 0) and (Configuration.Settings.spertStartupFan <= 4)
+          then comport.SendString(Utf8ToAnsi('F: ' + IntToStr(Configuration.Settings.spertStartupFan)) + COMPORT_DELIM);
 
-        if (Configuration.Settings.spertStartupFan > 0) and (Configuration.Settings.spertStartupFan <= 4) then Send('F: ' + IntToStr(Configuration.Settings.spertStartupFan));
-
-        if spertState.pwr > 0 then
-        begin
-          Send('ALC_PWM: 0');
-          Send('ALC_PWM: ' + IntToStr(spertState.pwr));
-        end;
+        // just after connect query current state
+        comport.SendString(Utf8ToAnsi('???') + COMPORT_DELIM);
+        comport.SendString(Utf8ToAnsi('ATU?') + COMPORT_DELIM);
 
       end;
     finally
@@ -260,11 +272,13 @@ begin
     try
       while comport.WaitingData > 0 do begin
         try
-          r:=comport.RecvTerminated(10, AnsiString(#13) + AnsiString(#10));
+          r:=comport.RecvTerminated(10, COMPORT_DELIM);
           payload:=Trim(AnsiToUtf8(r));
           if payload <> '' then begin
+            FormDebug.Log('[Spert] > ' + payload);
             spertState.active:=True;
             comportLastCommTs:=DateTimeToUnix(Now());
+
             if Assigned(ignorePayload) and (payload = ignorePayload.waitFor) then begin
               FreeAndNil(ignorePayload);
               ProcessCmd(payload);
@@ -273,6 +287,7 @@ begin
             end else if not Assigned(ignorePayload) then begin
               ProcessCmd(payload);
             end;
+
           end;
         except
           on E: Exception do FormDebug.Log('[Spert] comport read exception - ' + E.Message);
@@ -289,10 +304,10 @@ var
   value: String;
   number: Integer;
   atuTuneWas: Boolean;
+  txWas: Boolean;
 begin
   atuTuneWas:=spertState.atuTune;
-
-  if cmd <> 'PA_SP7SP' then FormDebug.Log('[Spert] < "' + cmd + '"');
+  txWas:=spertState.tx;
 
   // power
   if StartsStr('ALC_PWM:', cmd) then
@@ -319,25 +334,6 @@ begin
   begin
    number:= extractInt(cmd, 'T: ');
    if number > -1 then spertState.temp:=number;
-  end;
-
-  // PTT on/off
-  if StartsStr('TX:', cmd) then
-  begin
-    value:=ReplaceText(cmd, 'TX: ', '');
-    if value='ON' then
-    begin
-      spertState.tx:=True;
-      spertState.fpwrMax:=0;
-      spertState.fpwrSum:=0;
-      spertState.fpwrCnt:=0;
-      spertState.rpwrSum:=0;
-      spertState.rpwrCnt:=0;
-    end;
-    if value='OFF' then
-    begin
-      spertState.tx:=False;
-    end;
   end;
 
   // outout power - showing average
@@ -371,6 +367,35 @@ begin
     end;
   end;
 
+  {
+  if StartsStr('BL:', cmd) then
+  begin
+    value:=ReplaceText(cmd, 'BL: ', '');
+    spertState.txLocked:=(value = 'ON');
+  end;
+  }
+
+  // PTT on/off
+  if StartsStr('TX:', cmd) then
+  begin
+    value:=ReplaceText(cmd, 'TX: ', '');
+    if value='ON' then
+    begin
+      spertState.tx:=True;
+      if Assigned(onEvent) and txWas then onEvent.call(SpertEventTxStart);
+      spertState.fpwrMax:=0;
+      spertState.fpwrSum:=0;
+      spertState.fpwrCnt:=0;
+      spertState.rpwrSum:=0;
+      spertState.rpwrCnt:=0;
+    end;
+    if value='OFF' then
+    begin
+      spertState.tx:=False;
+      if Assigned(onEvent) and txWas then onEvent.call(SpertEventTxStop);
+    end;
+  end;
+
   // ATU presence (intalled or not)
   if StartsStr('ATU_INST:', cmd) then
   begin
@@ -386,19 +411,19 @@ begin
     spertState.atuActive:=(value = '1');
   end;
 
-  // ATU tuning started event
+  // ATU tuning started
   if cmd='TUNE' then
   begin
     spertState.atuTune:=True;
     spertState.tx:=True;
   end;
 
-  // ATU tuning finished event
+  // ATU tuning finished
   if cmd='TUNE OFF' then
   begin
     spertState.atuTune:=False;
     spertState.tx:=False;
-    if Assigned(spertState.onEvent) and atuTuneWas then spertState.onEvent.call(TSpertEvents.AFTER_TUNE_END);
+    if Assigned(onEvent) and atuTuneWas then onEvent.call(SpertEventAtferTuneStop);
   end;
 
   // ATU colors
@@ -406,16 +431,27 @@ begin
 
   // firmware version
   if StartsStr('Ver:', cmd) then spertState.version:='SPert 1000 (' + ReplaceText(cmd, 'Ver: ', '') + ')';
+
+  // Fan
+  if StartsStr('F:', cmd) then begin
+    number:=extractInt(cmd, 'F: ');
+    case number of
+      1: spertState.fan:=SpertFanLevel_50;
+      2: spertState.fan:=SpertFanLevel_Max;
+      3: spertState.fan:=SpertFanLevel_Histeresis;
+      4: spertState.fan:=SpertFanLevel_Fixed;
+    end;
+  end;
 end;
 
 procedure TSpert.Send(cmd: String);
 begin
   if (comportConnected = true) then
   begin
-    if cmd <> 'PA?' then FormDebug.Log('[Spert] > ' + cmd);
+    FormDebug.Log('[Spert] < ' + cmd);
     comportMutex.Acquire;
     try
-      comport.SendString(Utf8ToAnsi(cmd) + AnsiString(#13) + AnsiString(#10));
+      comport.SendString(Utf8ToAnsi(cmd) + COMPORT_DELIM);
     finally
       comportMutex.Release;
       sleep(200);
@@ -425,8 +461,11 @@ end;
 
 procedure TSpert.Stop;
 begin
+  running:=False;
+
   timerKeepAlive.Enabled:=False;
   Disconnect;
+
   FormDebug.Log('[Spert] stopped');
 end;
 
@@ -436,7 +475,10 @@ begin
   begin
     FormDebug.Log('[Spert] disconnecting');
 
-    // if disconnectinb because error, eg. serial port interference run following commands to set proper state before disconnecting
+    // alwys unlock TX on exit
+    txLockOff;
+
+    // if disconnecting because error, eg. serial port interference run following commands to set proper state before disconnecting
     ProcessCmd('TUNE OFF');
     ProcessCmd('TX: OFF');
 
@@ -448,6 +490,9 @@ begin
     comport.CloseSocket;
 
     comportConnected:=false;
+
+    if (autoDiscoverLockFile <> '') and FileExists(autoDiscoverLockFile) then DeleteFile(autoDiscoverLockFile);
+    autoDiscoverLockFile:='';
   end;
 end;
 
@@ -457,7 +502,7 @@ begin
   FreeAndNil(timerKeepAlive);
   FreeAndNil(comportMutex);
   FreeAndNil(spertState);
-
+  FreeAndNil(autoDiscover);
   inherited;
 end;
 
@@ -478,19 +523,16 @@ var
   payload: String;
 begin
     spertState.pwr:=pwr;
-
     payload:='ALC_PWM: ' + IntToStr(pwr);
-
     ignorePayload:=TSpertPayloadSuspend.Create;
     ignorePayload.waitFor:=payload;
     ignorePayload.ignore:='ALC_PWM: ';
-
     Send(payload)
 end;
 
 procedure TSpert.tuneAtu;
 begin
-  if Assigned(spertState.onEvent) then spertState.onEvent.call(TSpertEvents.BEFORE_TUNE_START);
+  if Assigned(onEvent) then onEvent.call(SpertEventBeforeTuneStart);
   Send('TUNE ON');
 end;
 
@@ -562,6 +604,46 @@ end;
 function TSpert.getVersion: String;
 begin
   Result:=spertState.version;
+end;
+
+function TSpert.getFan: TSpertFanLevel;
+begin
+   Result:=spertState.fan;
+end;
+
+procedure TSpert.resetAtuMem;
+begin
+  Send('CMEM');
+end;
+
+procedure TSpert.setFan(fan: TSpertFanLevel);
+begin
+  case fan of
+    SpertFanLevel_50:         Send('F: 1');
+    SpertFanLevel_Max:        Send('F: 2');
+    SpertFanLevel_Histeresis: Send('F: 3');
+    SpertFanLevel_Fixed:      Send('F: 4');
+  end;
+end;
+
+procedure TSpert.txLockOn;
+begin
+  if not spertState.tx and not spertState.atuTune then
+  begin
+    Send('BL:ON');
+    spertState.txLocked:=True;
+  end;
+end;
+
+procedure TSpert.txLockOff;
+begin
+  Send('BL:OFF');
+  spertState.txLocked:=False;
+end;
+
+function TSpert.isTxLocked: Boolean;
+begin
+  Result:=spertState.txLocked;
 end;
 
 { helpers }
