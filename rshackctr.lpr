@@ -23,6 +23,7 @@ uses
 
 begin
   RequireDerivedFormResource:=True;
+
   Application.Title:='RadioShackCtl';
   Application.Scaled:=True;
   Application.Initialize;

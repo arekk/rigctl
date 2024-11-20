@@ -5,22 +5,13 @@ unit UnitRig;
 interface
 
 uses
-  Classes;
+  Classes,
+  UnitEventsInterface;
 
 type
-  TRigEventType = (RigEventBandChange, RigEventModeChange, RigEventTxStart, RigEventTxStop);
-
-  TRigEvent = interface
-    procedure call(event: TRigEventType);
-  end;
-
   TRig = interface
-    procedure setEventHandler(handler: TRigEvent);
-
     procedure Start;
     procedure Stop;
-    procedure Send(payload: String);
-
     procedure SetVfoA_frq(frq: Longword);
     procedure SetVfoB_frq(frq: Longword);
     procedure SetVfoA_mode(mode: String);
@@ -45,7 +36,7 @@ type
     procedure SetBand_12;
     procedure SetBand_10;
     procedure SetBand_6;
-
+    procedure playMessage(no: Byte);
     function isActive:Boolean;
     function pttActive:Boolean;
     function splitActive:Boolean;
@@ -68,6 +59,8 @@ type
     function getRPwrAvgPercent: Double;
     function getSMeter: String;
     function getVersion: String;
+    procedure onEvent(event: IEvent);
+    procedure onState(event: TNotifyEvent);
   end;
 
 implementation

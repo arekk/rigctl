@@ -37,6 +37,8 @@ type
     Configuration: TConfiguration;
   private
     procedure LogProc;
+  public
+    procedure SetUp;
   end;
 
 var
@@ -47,6 +49,35 @@ implementation
 {$R *.lfm}
 
 { TFormDebug }
+
+procedure TFormDebug.FormCreate(Sender: TObject);
+begin
+  Configuration:=TConfiguration.Create(Application.Location);
+  Configuration.Load;
+end;
+
+procedure TFormDebug.FormShow(Sender: TObject);
+begin
+  NSView(Handle).window.setFrameAutosaveName(NSSTR(ClassName));
+  CheckBox1.Checked:=True;
+end;
+
+procedure TFormDebug.Button1Click(Sender: TObject);
+begin
+  FormDebug.Memo1.Clear;
+end;
+
+procedure TFormDebug.FormClose(Sender: TObject; var CloseAction: TCloseAction);
+begin
+  CloseAction:=caHide;
+end;
+
+procedure TFormDebug.FormDestroy(Sender: TObject);
+begin
+  FreeAndNil(Configuration);
+end;
+
+{ helpers }
 
 procedure TFormDebug.Log(msg: String);
 begin
@@ -68,33 +99,9 @@ begin
   LastLogMessage:=''
 end;
 
-procedure TFormDebug.FormCreate(Sender: TObject);
+procedure TFormDebug.SetUp;
 begin
-  Configuration:=TConfiguration.Create(Application.Location);
   Configuration.Load;
-
-  Visible:=Configuration.Settings.Debug;
-  CheckBox1.Checked:=True;
-end;
-
-procedure TFormDebug.FormShow(Sender: TObject);
-begin
-  NSView(Handle).window.setFrameAutosaveName(NSSTR(ClassName));
-end;
-
-procedure TFormDebug.Button1Click(Sender: TObject);
-begin
-  FormDebug.Memo1.Clear;
-end;
-
-procedure TFormDebug.FormClose(Sender: TObject; var CloseAction: TCloseAction);
-begin
-  CloseAction:=caHide;
-end;
-
-procedure TFormDebug.FormDestroy(Sender: TObject);
-begin
-  FreeAndNil(Configuration);
 end;
 
 end.

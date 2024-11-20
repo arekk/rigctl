@@ -26,7 +26,6 @@ type
       destructor Destroy; override;
       procedure Start;
       procedure Stop;
-
     private
       procedure CommandGet(AContext: TIdContext; ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo);
       function HandleRequest(inputXML: String): String;
@@ -34,7 +33,7 @@ type
       Rig: TRig;
       Server: TIdHTTPServer;
       Configuration: TConfiguration;
-
+    private
       const XML_CMD_REPLY   ='<?xml version="1.0"?><methodResponse><params><param><value></value></param></params></methodResponse>';
       const XML_STR_REPLY   ='<?xml version="1.0"?><methodResponse><params><param><value>%s</value></param></params></methodResponse>';
       const XML_INT_REPLY   ='<?xml version="1.0"?><methodResponse><params><param><value><i4>%d</i4></value></param></params></methodResponse>';
@@ -50,15 +49,13 @@ implementation
 constructor TFlrigServer.Create(c: TConfiguration; r: TRig);
 begin
   Configuration:=c;
-  Rig:=r;
-  Server:=TIdHTTPServer.Create(nil);
-end;
 
-destructor TFlrigServer.Destroy;
-begin
-  FreeAndNil(Server);
-  FreeAndNil(Configuration);
-  inherited;
+  Rig:=r;
+
+  Server:=TIdHTTPServer.Create(nil);
+  Server.KeepAlive:=True;
+  Server.ListenQueue:=50;
+  Server.MaxConnections:=5;
 end;
 
 procedure TFlrigServer.Start;
@@ -72,9 +69,6 @@ begin
     FormDebug.Log('[FlrigServer] starting on port ' + IntToStr(Configuration.Settings.flrigServerPort));
 
     Server.OnCommandGet:=@CommandGet;
-    Server.KeepAlive:=True;
-    Server.ListenQueue:=50;
-    Server.MaxConnections:=5;
 
     try
        Server.Bindings.Clear;
@@ -211,9 +205,10 @@ begin
            CurrentOutput:=XML_CMD_REPLY
         end;
 
-        'rig.cat_string': begin
+        // non-standard method
+        'rig.play_message': begin
            xmlNode := xmlNode.NextSibling;
-           if Assigned(xmlNode) then Rig.Send(xmlNode.TextContent);
+           if Assigned(xmlNode) then Rig.playMessage(StrToInt(xmlNode.TextContent));
            CurrentOutput:=XML_CMD_REPLY
         end;
       end;
@@ -234,5 +229,11 @@ begin
   FormDebug.Log('[FlrigServer] server stopped');
 end;
 
-end.
+destructor TFlrigServer.Destroy;
+begin
+  FreeAndNil(Server);
+  FreeAndNil(Configuration);
+  inherited;
+end;
 
+end.

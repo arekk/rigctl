@@ -15,7 +15,7 @@ object FormInit: TFormInit
     object MenuItem4: TMenuItem
       Caption = 'Window'
       object MenuItem5: TMenuItem
-        Caption = 'FTdx10'
+        Caption = 'Radio'
         OnClick = MenuItem5Click
       end
       object MenuItem6: TMenuItem

@@ -46,7 +46,6 @@ type
     SpinEdit2: TSpinEdit;
     SpinEdit3: TSpinEdit;
     procedure ButtonSaveClick(Sender: TObject);
-    procedure FormClose(Sender: TObject; var CloseAction: TCloseAction);
     procedure FormCreate(Sender: TObject);
     procedure FormShow(Sender: TObject);
   private
@@ -169,10 +168,7 @@ begin
   Close;
 end;
 
-procedure TFormSettings.FormClose(Sender: TObject; var CloseAction: TCloseAction);
-begin
-  CloseAction:=caHide;
-end;
+
 
 end.
 

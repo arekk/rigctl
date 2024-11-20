@@ -20,16 +20,13 @@ uses
   ComCtrls,
   Buttons,
   StrUtils,
-
   UnitSettings,
   UnitFlrigServer,
   UnitRig,
   UnitRigFTdx10;
 
 type
-
   { TFormRig }
-
   TFormRig = class(TForm)
     BitBtnSplit: TBitBtn;
     BitBtnSplitPlus: TBitBtn;
@@ -66,14 +63,12 @@ type
     PanelVfoMode: TPanel;
     PanelVfoAB: TPanel;
     StatusBar1: TStatusBar;
-    Timer1: TTimer;
     TrackBarPwr: TTrackBar;
     TrackBarDgain: TTrackBar;
     procedure BitBtnSplitClick(Sender: TObject);
     procedure BitBtnSplitMinusClick(Sender: TObject);
     procedure BitBtnSplitPlusClick(Sender: TObject);
     procedure BitBtnTXWClick(Sender: TObject);
-    procedure FormDestroy(Sender: TObject);
     procedure BitBtnDNFClick(Sender: TObject);
     procedure BitBtnDNRClick(Sender: TObject);
     procedure BitBtnVOXClick(Sender: TObject);
@@ -95,21 +90,22 @@ type
     procedure FormCreate(Sender: TObject);
     procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure FormShow(Sender: TObject);
-    procedure Timer1Timer(Sender: TObject);
     procedure TrackBarPwrChange(Sender: TObject);
     procedure TrackBarDgainChange(Sender: TObject);
-
   private
     Configuration: TConfiguration;
-    FlRigServer: TFlrigServer;
+    flRigServer: TFlrigServer;
     picBallGreen: TBitmap;
     picBallBlue: TBitmap;
+    TimerFormClose: TTimer;
   private
+    procedure UpdateUI(Sender: TObject);
+    procedure TimerFormCloseTimer(Sender: TObject);
     function RigFrequencyToCaption(frq: LongWord): String;
   public
     Rig: TRig;
   public
-    procedure ReloadConfiguration(restartTrx: Boolean; restartFlrig: Boolean);
+    procedure SetUp(restartTrx: Boolean; restartFlrig: Boolean);
   end;
 
 var
@@ -128,15 +124,17 @@ begin
 
   // curently ony FTdx10 is supported
   Rig:=TFTdx10rig.Create(Configuration);
+  Rig.onState(@UpdateUI);
 
-  FlRigServer:=TFlrigServer.Create(Configuration, Rig);
+  flRigServer:=TFlrigServer.Create(Configuration, Rig);
 
   picBallGreen:=TBitMap.Create;
   picBallGreen.LoadFromResourceName(HInstance, 'BALL_GREEN_ICON');
+
   picBallBlue:=TBitMap.Create;
   picBallBlue.LoadFromResourceName(HInstance, 'BALL_BLUE_ICON');
 
-  Caption:='TRX';
+  Caption:=Configuration.Settings.trx;
 end;
 
 procedure TFormRig.FormShow(Sender: TObject);
@@ -155,23 +153,173 @@ begin
 
   Rig.Start;
 
-  FlRigServer.Start;
+  Application.ProcessMessages;
 
-  Timer1.Interval:=Configuration.Settings.trxPool;
-  Timer1.Enabled:=True;
+  FlRigServer.Start;
 end;
 
 procedure TFormRig.FormClose(Sender: TObject; var CloseAction: TCloseAction);
 begin
-  FlRigServer.Stop;
-  Rig.Stop;
+  TimerFormClose:=TTimer.Create(nil);
+  TimerFormClose.Interval:=5;
+  TimerFormClose.Enabled:=True;
+  TimerFormClose.OnTimer:=@TimerFormCloseTimer;
+
   CloseAction:=caHide;
 end;
 
-procedure TFormRig.FormDestroy(Sender: TObject);
+procedure TFormRig.TimerFormCloseTimer(Sender: TObject);
 begin
+  TimerFormClose.Enabled:=False;
+
   FlRigServer.Stop;
+  Application.ProcessMessages;
+
   Rig.Stop;
+  Application.ProcessMessages;
+end;
+
+procedure TFormRig.UpdateUI(Sender: TObject);
+var
+  frqDelta: Double;
+  rpwr: Double;
+begin
+  BeginFormUpdate;
+
+  Application.ProcessMessages;
+
+  { rig is connected }
+  if Rig.isActive then
+  begin
+    GroupBox1.Enabled:=True;
+    GroupBox3.Enabled:=True;
+
+    StatusBar1.Panels.Items[0].Text:='  ' + IntToStr(Rig.getBand) + 'M';
+    StatusBar1.Panels.Items[1].Text:=Rig.getVersion;
+
+    // VFO
+    PanelVfoFrq.Caption:=RigFrequencyToCaption(Rig.getFrq);
+
+    PanelVfoMode.Caption:=Rig.getMode;
+    PanelVfoMode.Color:=clGreen;
+
+    // RX buttons
+    if Rig.voxActive
+      then BitBtnVOX.Glyph.Assign(picBallGreen)
+      else BitBtnVOX.Glyph.Assign(picBallBlue);
+
+    if Rig.dnrActive
+      then BitBtnDNR.Glyph.Assign(picBallGreen)
+      else BitBtnDNR.Glyph.Assign(picBallBlue);
+
+    if Rig.dnfActive
+      then BitBtnDNF.Glyph.Assign(picBallGreen)
+      else BitBtnDNF.Glyph.Assign(picBallBlue);
+
+    if Rig.splitActive then
+    begin
+      frqDelta:=(Rig.getVfoB_frq - Rig.getVfoA_frq) / 1000;
+      PanelVfoFrq.Color:=clYellow;
+      PanelVfoFrq.Font.Color:=clBlack;
+      PanelVfoAB.Color:=clYellow;
+      PanelVfoAB.Font.Color:=clBlack;
+      if frqDelta > 0
+        then PanelVfoAB.Caption:= '+' + FloatToStr(frqDelta)
+        else PanelVfoAB.Caption:= '-' + FloatToStr(Abs(frqDelta));
+           BitBtnSplit.Glyph.Assign(picBallGreen);
+      BitBtnSplitPlus.Enabled:=True;
+      BitBtnSplitMinus.Enabled:=(Rig.getVfoB_frq > Rig.getVfoA_frq);
+      BitBtnTXW.Enabled:=True;
+      if Rig.txwActive then BitBtnTXW.Glyph.Assign(picBallGreen) else BitBtnTXW.Glyph.Assign(picBallBlue);
+    end else
+    begin
+      PanelVfoFrq.Color:=clGreen;
+      PanelVfoFrq.Font.Color:=clWhite;
+      PanelVfoAB.Color:=clGreen;
+      PanelVfoAB.Font.Color:=clWhite;
+      case Rig.getVfo of
+        0: PanelVfoAB.Caption:='A';
+        1: PanelVfoAB.Caption:='B';
+      end;
+      BitBtnSplit.Glyph.Assign(picBallBlue);
+      BitBtnSplitPlus.Enabled:=False;
+      BitBtnSplitMinus.Enabled:=False;
+      BitBtnTXW.Glyph.Assign(picBallBlue);
+      BitBtnTXW.Enabled:=False;
+    end;
+
+    // pwr set on trx
+    if Rig.getPwr <> TrackBarPwr.Position then begin
+      TrackBarPwr.Enabled:=False;
+      TrackBarPwr.Position:=Rig.getPwr;
+      TrackBarPwr.Enabled:=True;
+      LabelPwr.Caption:='Power ' + IntToStr(Rig.getPwr);
+    end;
+
+    // RPORT Gain aka DIGITAL Gain
+    if Rig.getDrPortGain <> TrackBarDgain.Position  then begin
+      TrackBarDgain.Enabled:=False;
+      TrackBarDgain.Position:=Rig.getDrPortGain;
+      TrackBarDgain.Enabled:=True;
+      LabelDgain.Caption:='Digital gain ' + IntToStr(Rig.getDrPortGain);
+    end;
+
+    { RX }
+    if not Rig.pttActive then
+    begin
+      GroupBox2.Enabled:=True;
+
+      PanelPwr.Color:=clGray;
+      PanelSwr.Color:=clGray;
+
+      // s-meter
+      PanelSmetr.Color:=clGreen;
+      PanelSmetr.Caption:=Rig.getSMeter;
+    end;
+
+    { TX }
+    if Rig.pttActive then
+    begin
+      GroupBox2.Enabled:=False;
+
+      // pwr forwarded from trx
+      PanelPwr.Color:=clGreen;
+      PanelPwr.Caption:=IntToStr(Rig.getFPwrMax);
+
+      // power reflected
+      rpwr:=Rig.getRPwrAvgPercent;
+      PanelSwr.Caption:=Format('%.1f', [rpwr]);
+      if rpwr > 12 then PanelSwr.Color:=clRed
+      else if rpwr >  1 then PanelSwr.Color:=clYellow
+      else PanelSwr.Color:=clGreen;
+
+      // dosable Smetr
+      PanelSmetr.Caption:='0';
+      PanelSmetr.Color:=clGray;
+    end;
+  end;
+
+  { rig disconnected }
+  if not Rig.isActive then begin
+    StatusBar1.Panels.Items[1].Text:= 'Not connected';
+    GroupBox1.Enabled:=False;
+    GroupBox2.Enabled:=False;
+    GroupBox3.Enabled:=False;
+    PanelVfoFrq.Color:=clGray;
+    PanelVfoFrq.Caption:='';
+    PanelVfoAB.Color:=clGray;
+    PanelVfoAB.Caption:='';
+    PanelVfoMode.Color:=clGray;
+    PanelVfoMode.Caption:='';
+    PanelSmetr.Color:=clGray;
+    PanelSmetr.Caption:='0';
+    PanelSwr.Color:=clGray;
+    PanelSwr.Caption:='0';
+    PanelPwr.Color:=clGray;
+    PanelPwr.Caption:='0';
+  end;
+
+  EndFormUpdate;
 end;
 
 procedure TFormRig.FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
@@ -341,6 +489,8 @@ begin
   if Rig.isActive and not Rig.pttActive then Rig.SetBand_6
 end;
 
+{ helpers }
+
 function TFormRig.RigFrequencyToCaption(frq: LongWord): String;
 var
   frequency: String;
@@ -352,142 +502,7 @@ begin
    Result:='';
 end;
 
-procedure TFormRig.Timer1Timer(Sender: TObject);
-var
-  frqDelta: Double;
-begin
-  BeginFormUpdate;
-
-  { rig is connected }
-  if Rig.isActive then
-  begin
-    GroupBox1.Enabled:=True;
-    GroupBox3.Enabled:=True;
-
-    StatusBar1.Panels.Items[0].Text:='  ' + IntToStr(Rig.getBand) + 'M';
-    StatusBar1.Panels.Items[1].Text:=Rig.getVersion;
-
-    // VFO
-    PanelVfoFrq.Caption:=RigFrequencyToCaption(Rig.getFrq);
-
-    PanelVfoMode.Caption:=Rig.getMode;
-    PanelVfoMode.Color:=clGreen;
-
-    // RX buttons
-    if Rig.voxActive
-      then BitBtnVOX.Glyph.Assign(picBallGreen)
-      else BitBtnVOX.Glyph.Assign(picBallBlue);
-
-    if Rig.dnrActive
-      then BitBtnDNR.Glyph.Assign(picBallGreen)
-      else BitBtnDNR.Glyph.Assign(picBallBlue);
-
-    if Rig.dnfActive
-      then BitBtnDNF.Glyph.Assign(picBallGreen)
-      else BitBtnDNF.Glyph.Assign(picBallBlue);
-
-    if Rig.splitActive then
-    begin
-      frqDelta:=(Rig.getVfoB_frq - Rig.getVfoA_frq) / 1000;
-      PanelVfoFrq.Color:=clYellow;
-      PanelVfoFrq.Font.Color:=clBlack;
-      PanelVfoAB.Color:=clYellow;
-      PanelVfoAB.Font.Color:=clBlack;
-      if frqDelta > 0
-        then PanelVfoAB.Caption:= '+' + FloatToStr(frqDelta)
-        else PanelVfoAB.Caption:= '-' + FloatToStr(Abs(frqDelta));
-           BitBtnSplit.Glyph.Assign(picBallGreen);
-      BitBtnSplitPlus.Enabled:=True;
-      BitBtnSplitMinus.Enabled:=(Rig.getVfoB_frq > Rig.getVfoA_frq);
-      BitBtnTXW.Enabled:=True;
-      if Rig.txwActive then BitBtnTXW.Glyph.Assign(picBallGreen) else BitBtnTXW.Glyph.Assign(picBallBlue);
-    end else
-    begin
-      PanelVfoFrq.Color:=clGreen;
-      PanelVfoFrq.Font.Color:=clWhite;
-      PanelVfoAB.Color:=clGreen;
-      PanelVfoAB.Font.Color:=clWhite;
-      case Rig.getVfo of
-        0: PanelVfoAB.Caption:='A';
-        1: PanelVfoAB.Caption:='B';
-      end;
-      BitBtnSplit.Glyph.Assign(picBallBlue);
-      BitBtnSplitPlus.Enabled:=False;
-      BitBtnSplitMinus.Enabled:=False;
-      BitBtnTXW.Glyph.Assign(picBallBlue);
-      BitBtnTXW.Enabled:=False;
-    end;
-
-    // pwr set on trx
-    if Rig.getPwr <> TrackBarPwr.Position then begin
-      TrackBarPwr.Enabled:=False;
-      TrackBarPwr.Position:=Rig.getPwr;
-      TrackBarPwr.Enabled:=True;
-      LabelPwr.Caption:='Power ' + IntToStr(Rig.getPwr);
-    end;
-
-    // RPORT Gain aka DIGITAL Gain
-    if Rig.getDrPortGain <> TrackBarDgain.Position  then begin
-      TrackBarDgain.Enabled:=False;
-      TrackBarDgain.Position:=Rig.getDrPortGain;
-      TrackBarDgain.Enabled:=True;
-      LabelDgain.Caption:='Digital gain ' + IntToStr(Rig.getDrPortGain);
-    end;
-
-    { RX }
-    if not Rig.pttActive then
-    begin
-      GroupBox2.Enabled:=True;
-
-      PanelPwr.Color:=clGray;
-      PanelSwr.Color:=clGray;
-
-      // s-meter
-      PanelSmetr.Color:=clGreen;
-      PanelSmetr.Caption:=Rig.getSMeter;
-    end;
-
-    { TX }
-    if Rig.pttActive then
-    begin
-      GroupBox2.Enabled:=False;
-
-      // pwr forwarded from trx
-      PanelPwr.Color:=clRed;
-      PanelPwr.Caption:=IntToStr(Rig.getFPwrMax);
-
-      // power reflected
-      PanelSwr.Color:=clGreen;
-      PanelSwr.Caption:=Format('%.1f', [Rig.getRPwrAvgPercent]);
-      PanelSmetr.Caption:='0';
-      PanelSmetr.Color:=clGray;
-    end;
-  end;
-
-  { rig disconnected }
-  if not Rig.isActive then begin
-    StatusBar1.Panels.Items[1].Text:= 'Not connected';
-    GroupBox1.Enabled:=False;
-    GroupBox2.Enabled:=False;
-    GroupBox3.Enabled:=False;
-    PanelVfoFrq.Color:=clGray;
-    PanelVfoFrq.Caption:='';
-    PanelVfoAB.Color:=clGray;
-    PanelVfoAB.Caption:='';
-    PanelVfoMode.Color:=clGray;
-    PanelVfoMode.Caption:='';
-    PanelSmetr.Color:=clGray;
-    PanelSmetr.Caption:='0';
-    PanelSwr.Color:=clGray;
-    PanelSwr.Caption:='0';
-    PanelPwr.Color:=clGray;
-    PanelPwr.Caption:='0';
-  end;
-
-  EndFormUpdate;
-end;
-
-procedure TFormRig.ReloadConfiguration(restartTrx: Boolean; restartFlrig: Boolean);
+procedure TFormRig.SetUp(restartTrx: Boolean; restartFlrig: Boolean);
 begin
   Configuration.Load;
 

@@ -15,6 +15,7 @@ uses
   ExtCtrls,
   UnitSettings,
   UnitSerialPortAutoDiscover,
+  UnitEventsInterface,
   UnitEvents,
   UnitSpert,
   UnitFormSettings,
@@ -59,6 +60,8 @@ type
     procedure MenuItem8Click(Sender: TObject);
   private
     Configuration: TConfiguration;
+  private
+    procedure SetUp;
   end;
 
 var
@@ -82,23 +85,18 @@ begin
 
   autoDiscover:=TSerialPortDiscover.Create(configuration.getConfigDirectory);
   autoDiscover.CleanLockFiles;
-
-  MenuItem7.Visible:=Configuration.Settings.Debug;
-
-  Separator1.Visible:=Configuration.Settings.spertEnabled;
-  MenuItem10.Visible:=Configuration.Settings.spertEnabled;
-  MenuItem11.Visible:=Configuration.Settings.spertEnabled;
 end;
 
 procedure TFormInit.FormShow(Sender: TObject);
+var
+  hwEvent: IEvent;
 begin
-  FormSpert.Rig:=FormRig.Rig; // required for SWR feature (TX frequency)
+  hwEvent:=TEvent.Create(FormSpert.Spert, FormSpert.SpertDatabase, FormRig.Rig, Configuration);
 
-  FormSpert.Rig.setEventHandler(TSpertRigEvent.Create(FormSpert.Spert, FormSpert.Rig, Configuration));
-  FormSpert.Spert.setEventHandler(TSpertSpertEvent.Create(FormSpert.Spert, FormSpert.Rig, Configuration));
+  FormSpert.Spert.onEvent(hwEvent);
+  FormRig.Rig.onEvent(hwEvent);
 
-  if Configuration.Settings.spertEnabled then FormSpert.Show;
-  if Configuration.IsTrxValid then FormRig.Show;
+  SetUp;
 end;
 
 procedure TFormInit.MenuItem2Click(Sender: TObject);
@@ -113,6 +111,30 @@ var
 begin
   Configuration.Load;
 
+  settingsForm:=TFormSettings(Sender);
+
+  SetUp;
+  FormSpert.SetUp(settingsForm.spertReloadRequired);
+  FormRig.SetUp(settingsForm.trxReloadRequired, settingsForm.flrigReloadRequired);
+
+  CloseAction:=caHide;
+end;
+
+procedure TFormInit.SetUp;
+begin
+  // window main menu
+  MenuItem5.Visible:=Configuration.IsTrxValid;
+  MenuItem5.Caption:=Configuration.Settings.trx;
+
+  MenuItem6.Visible:=Configuration.Settings.spertEnabled;
+  MenuItem7.Visible:=Configuration.Settings.Debug;
+
+  // settings main menu
+  Separator1.Visible:=Configuration.Settings.spertEnabled;
+  MenuItem10.Visible:=Configuration.Settings.spertEnabled;
+  MenuItem11.Visible:=Configuration.Settings.spertEnabled;
+
+  // windows
   if Configuration.Settings.Debug and not FormDebug.Visible
     then FormDebug.Show;
   if FormDebug.Visible and not Configuration.Settings.Debug
@@ -127,13 +149,6 @@ begin
     then FormSpert.Close;
   if not FormSpert.Visible and Configuration.Settings.spertEnabled
     then FormSpert.Show;
-
-  settingsForm:=TFormSettings(Sender);
-
-  if FormSpert.Visible then FormSpert.ReloadConfiguration(settingsForm.spertReloadRequired);
-  if FormRig.Visible then FormRig.ReloadConfiguration(settingsForm.trxReloadRequired, settingsForm.flrigReloadRequired);
-
-  settingsForm.OnClose:=nil;
 end;
 
 procedure TFormInit.MenuItem5Click(Sender: TObject);
@@ -193,6 +208,7 @@ end;
 procedure TFormInit.MenuItem11Click(Sender: TObject);
 begin
   FormSpert.Spert.resetAtuMem;
+  FormSpert.SpertDatabase.Clear;
 end;
 
 procedure TFormInit.MenuItem13Click(Sender: TObject);

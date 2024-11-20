@@ -8,10 +8,10 @@ uses
   Classes,
   SysUtils,
   ExtCtrls,
-  Dateutils,
   StrUtils,
   LazSynaser,
   Syncobjs,
+  UnitEventsInterface,
   UnitSerialPortAutoDiscover,
   UnitRig,
   UnitSettings,
@@ -22,6 +22,7 @@ type
   TFTdx10rigState = class
     public
       constructor Create;
+      procedure Reset;
     private
       active: Boolean;
       vfoA_frq: Longword;
@@ -74,11 +75,13 @@ type
       comport: TBlockSerial;
       timerRead: TTimer;
       ignorePayload: TFTdx10rigPayloadSuspend;
-      comportLastCommTs: Longword;
-      onEvent: TRigEvent;
+      keepAliveCounter: Integer;
+      fOnEvent: IEvent;
+      fOnState: TNotifyEvent;
     private
       procedure Connect(port: String);
       procedure Disconnect;
+      procedure Send(payload: String);
       procedure Read;
       procedure ProcessCmd(payload: String);
       procedure onTimerKeepAlive(Sender: TObject);
@@ -92,10 +95,8 @@ type
     public
       constructor Create(Config: TConfiguration);
       destructor Destroy; override;
-      procedure setEventHandler(handler: TRigEvent);
       procedure Start;
       procedure Stop;
-      procedure Send(payload: String);
       procedure SetVfoA_frq(frq: Longword);
       procedure SetVfoB_frq(frq: Longword);
       procedure SetVfoA_mode(mode: String);
@@ -120,6 +121,7 @@ type
       procedure SetBand_12;
       procedure SetBand_10;
       procedure SetBand_6;
+      procedure playMessage(no: Byte);
       function isActive:Boolean;
       function pttActive:Boolean;
       function splitActive:Boolean;
@@ -142,6 +144,8 @@ type
       function getRPwrAvgPercent: Double;
       function getSMeter: String;
       function getVersion: String;
+      procedure onEvent(event: IEvent);
+      procedure onState(event: TNotifyEvent);
   end;
 
 implementation
@@ -170,8 +174,17 @@ end;
 
 constructor TFTdx10rigState.Create;
 begin
+  Reset;
+end;
+
+procedure TFTdx10rigState.Reset;
+begin
    active:=False;
    ptt:=False;
+   vfoA_frq:=0;
+   vfoB_frq:=0;
+   frq:=0;
+   vfo:=0;
    fpwrMax:=0;
    fpwrSum:=0;
    fpwrCnt:=0;
@@ -180,6 +193,8 @@ begin
 end;
 
 { TFTdx10rig }
+
+{ core }
 
 constructor TFTdx10rig.Create(Config: TConfiguration);
 begin
@@ -192,38 +207,42 @@ begin
 
   comportMutex:=TCriticalSection.Create;
 
+  keepAliveCounter:=0;
+
   timerKeepAlive:=TTimer.Create(nil);
   timerKeepAlive.Enabled:=False;
 
   comportConnected:=False;
 end;
 
-procedure TFTdx10rig.setEventHandler(handler: TRigEvent);
-begin
-  onEvent:=handler;
-end;
-
 procedure TFTdx10rig.Start;
 begin
   running:=True;
 
-  timerKeepAlive.Interval:=1000;
+  rigState.Reset;
+  if Assigned(fOnState) then fOnState(nil);
+
+  timerKeepAlive.Interval:=2000;
   timerKeepAlive.OnTimer:=@onTimerKeepAlive;
   timerKeepAlive.Enabled:=True;
 end;
 
 procedure TFTdx10rig.onTimerKeepAlive(Sender: TObject);
+var
+  autoDiscoverThreads: Integer;
 begin
-  FormDebug.Log('[Rig] connection: ' + BoolToStr(comportConnected, True));
-
   if not comportConnected then
   begin
     if configuration.Settings.trxPort = 'AUTO' then
     begin
       autoDiscover.OnSuccess:=@onPortDiscover;
       autoDiscover.OnFinish:=@onPortDiscoverFinish;
-      if autoDiscover.Discover(TSerialPortDiscoverParams.Create('TFTdx10', Configuration.Settings.trxPortRate, Utf8ToAnsi(';'), Utf8ToAnsi('ID'), Utf8ToAnsi('ID0761'))) > 0
-        then timerKeepAlive.Enabled:=False;
+      autoDiscoverThreads:=autoDiscover.Discover(TSerialPortDiscoverParams.Create('TFTdx10', Configuration.Settings.trxPortRate, Utf8ToAnsi(';'), Utf8ToAnsi('ID'), Utf8ToAnsi('ID0761'), 50));
+      if autoDiscoverThreads > 0 then
+      begin
+        FormDebug.Log(Format('[Rig] disabling keep-alive and waiting for %d auto-discover threads to finish', [autoDiscoverThreads]));
+        timerKeepAlive.Enabled:=False;
+      end;
     end
     else
     begin
@@ -232,7 +251,10 @@ begin
     end;
   end;
 
-  if comportConnected and rigState.active and ((comportLastCommTs + 5) <  DateTimeToUnix(Now())) then Disconnect;
+  FormDebug.Log(Format('[Rig] connection: %s [%d]', [BoolToStr(comportConnected, True), keepAliveCounter]));
+
+  if running and comportConnected then Inc(keepAliveCounter);
+  if running and comportConnected and (keepAliveCounter > 5) then Disconnect;
 end;
 
 procedure TFTdx10rig.onPortDiscover(Sender: TObject);
@@ -243,6 +265,7 @@ end;
 
 procedure TFTdx10rig.onPortDiscoverFinish(Sender: TObject);
 begin
+  FormDebug.Log(Format('[Rig] auto-discover threads finshed, setting keep-alive to %s', [BoolToStr(running, True)]));
   timerKeepAlive.Enabled:=running;
 end;
 
@@ -259,11 +282,12 @@ begin
       comport.Connect(port);
       comport.Config(Configuration.Settings.trxPortRate, 8, 'N', SB1, False, True);
 
-      FormDebug.Log('[Rig] connection to ' + port +  ' -> ' + comport.LastErrorDesc + ' code: ' + Inttostr(comport.LastError));
+      FormDebug.Log('[Rig] connection to ' + comport.Device +  ' -> ' + comport.LastErrorDesc + ' code: ' + Inttostr(comport.LastError));
 
       if comport.LastError = 0 then
       begin
         comportConnected:=True;
+        keepAliveCounter:=0;
 
         timerRead:=TTimer.Create(nil);
         timerRead.Interval:=configuration.Settings.trxPool;
@@ -284,6 +308,7 @@ begin
     comportMutex.Acquire;
     try
       comport.SendString(Utf8ToAnsi(payload + ';'));
+      comport.Flush;
     finally
       comportMutex.Release;
     end;
@@ -293,20 +318,22 @@ end;
 procedure TFTdx10rig.onTimerRead(Sender: TObject);
 begin
   { send request for all data required for state update }
-  if (comportConnected = true) then
+  if comportConnected then
   begin
     comportMutex.Acquire;
     try
       comport.SendString(Utf8ToAnsi('ID;TX;VS;FA;MD0;FB;MD1;ST;RM1;PC;VX;NR0;BC0;EX010417;TS;'));
       if rigState.ptt then comport.SendString(Utf8ToAnsi('RM5;RM6;'));
-      Read;
     finally
       comportMutex.Release;
     end;
   end;
 
-  { now can read data from TRX }
+  { read data from TRX and update internal state object }
   Read;
+
+  { call procedure to refllect state updates outside of unit }
+  if Assigned(fOnState) then fOnState(nil);
 end;
 
 procedure TFTdx10rig.Read;
@@ -323,8 +350,10 @@ begin
         payload:=Trim(AnsiToUtf8(r));
         if Length(payload) >= 3 then
         begin
+          // any valid data incoming from port setting Rig in statr active
           rigState.active:=True;
-          comportLastCommTs:=DateTimeToUnix(Now());
+          if keepAliveCounter > 0 then Dec(keepAliveCounter);
+
           if Assigned(ignorePayload) and ignorePayload.match(payload) then begin
             FreeAndNil(ignorePayload);
             ProcessCmd(payload);
@@ -421,7 +450,7 @@ begin
       rigState.ptt:=(StrToInt(payload.Substring(2, 1)) > 0); // 2 - mic 1 - USB
       if not pttWas and rigState.ptt then
       begin
-        if Assigned(onEvent) then onEvent.call(RigEventTxStart);
+        if Assigned(fOnEvent) then fOnEvent.call(RigEventTxStart);
         rigState.fpwrMax:=0;
         rigState.fpwrSum:=0;
         rigState.fpwrCnt:=0;
@@ -430,18 +459,18 @@ begin
       end;
       if pttWas and not rigState.ptt then
       begin
-        if Assigned(onEvent) then onEvent.call(RigEventTxStop);
+        if Assigned(fOnEvent) then fOnEvent.call(RigEventTxStop);
       end
     end
   end;
 
-  if Assigned(onEvent) then
+  if Assigned(fOnEvent) then
   begin
     if frqToBand(rigState.frq) <> bandWas
-       then onEvent.call(RigEventBandChange);
+       then fOnEvent.call(RigEventBandChange);
 
     if rigState.mode <> modeWas
-       then onEvent.call(RigEventModeChange);
+       then fOnEvent.call(RigEventModeChange);
   end;
 
 end;
@@ -449,29 +478,28 @@ end;
 procedure TFTdx10rig.Stop;
 begin
   running:=False;
-
   timerKeepAlive.Enabled:=False;
+  autoDiscover.Terminate;
   Disconnect;
-
   FormDebug.Log('[Rig] stopped');
 end;
 
 procedure TFTdx10rig.Disconnect;
 begin
   if comportConnected then
-    begin
-      FormDebug.Log('[Rig] disconnecting');
+  begin
+    FormDebug.Log('[Rig] disconnecting');
 
-      timerRead.Enabled:=False;
-      FreeAndNil(timerRead);
+    comportConnected:=False;
 
-      comportConnected:=False;
-      rigState.active:=False;
+    rigState.Reset;
+    if Assigned(fOnState) then fOnState(nil);
 
-      comport.CloseSocket;
-    end;
+    timerRead.Enabled:=False;
+    timerRead.Free;
 
-  FreeAndNil(comport);
+    comport.Free;
+  end;
 
   if (autoDiscoverLockFile <> '') and FileExists(autoDiscoverLockFile) then DeleteFile(autoDiscoverLockFile);
   autoDiscoverLockFile:='';
@@ -484,11 +512,12 @@ begin
 
   FreeAndNil(comportMutex);
   FreeAndNil(rigState);
+  FreeAndNil(autoDiscover);
 
   inherited;
 end;
 
-{ update TRX state procedures }
+{ set/get }
 
 procedure TFTdx10rig.SetVfoA_frq(frq: Longword);
 var
@@ -692,9 +721,15 @@ begin
   Send('BS10');
 end;
 
+procedure TFTdx10rig.playMessage(no: Byte);
+begin
+  Send('BI1');
+  Send('PB0' + IntToStr(no));
+end;
+
 function TFTdx10rig.isActive: Boolean;
 begin
-  Result:=rigState.active;
+  Result:=(running and comportConnected and rigState.active);
 end;
 
 function TFTdx10rig.pttActive: Boolean;
@@ -729,7 +764,7 @@ end;
 
 function TFTdx10rig.getBand:Byte;
 begin
-   frqToBand(rigState.frq)
+   Result:=frqToBand(rigState.frq)
 end;
 
 function TFTdx10rig.splitActive:Boolean;
@@ -816,6 +851,16 @@ end;
 function TFTdx10rig.getVersion: String;
 begin
   Result:='FTdx10 (' + rigState.version + ')';
+end;
+
+procedure TFTdx10rig.onEvent(event: IEvent);
+begin
+  fOnEvent:=event;
+end;
+
+procedure TFTdx10rig.onState(event: TNotifyEvent);
+begin
+  fOnState:=event;
 end;
 
 { private helpers }

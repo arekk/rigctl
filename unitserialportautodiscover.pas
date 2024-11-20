@@ -15,13 +15,14 @@ uses
 type
   TSerialPortDiscoverParams = class
     public
-      constructor Create(handle: String; portRate: Integer; delimiter: String; send: String; expect: String);
+      constructor Create(handle: String; portRate: Integer; delimiter, send, expect: String; delay: Integer);
     public
       fHandle: String;
       fPortRate: Integer;
       fDelimiter: String;
       fSend: String;
       fExpect: String;
+      fDelay: Integer;
   end;
 
   TSerialPortDiscoverResult = class
@@ -55,9 +56,11 @@ type
       procedure CleanLockFiles;
       function LockPort(port: String):String;
       function Discover(params: TSerialPortDiscoverParams): Integer;
+      procedure Terminate;
       property OnSuccess: TNotifyEvent read fOnSuccess write fOnSuccess;
       property OnFinish: TNotifyEvent read fOnFinish write fOnFinish;
     private
+      function LockFile(port: String):String;
       procedure onAutoDiscoverThreadTerminate(Sender: TObject);
   end;
 
@@ -65,13 +68,14 @@ implementation
 
 { TSerialPortDiscoverParams }
 
-constructor TSerialPortDiscoverParams.Create(handle: String; portRate: Integer; delimiter: String; send: String; expect: String);
+constructor TSerialPortDiscoverParams.Create(handle: String; portRate: Integer; delimiter, send, expect: String; delay: Integer);
 begin
   fHandle:=handle;
   fPortRate:=portRate;
   fDelimiter:=delimiter;
   fSend:=send;
   fExpect:=expect;
+  fDelay:=delay;
 end;
 
 { TSerialPortDiscover }
@@ -92,36 +96,42 @@ begin
   {$ENDIF}
 end;
 
-function TSerialPortDiscover.LockPort(port: String):String;
-var
-  lockFile: String;
+function TSerialPortDiscover.LockFile(port: String):String;
 begin
   {$IFDEF DARWIN}
-  lockFile:=fLockFilesDirectory + PathDelim + ExtractFileName(port) + '.lockfile';
+  Result:=fLockFilesDirectory + PathDelim + ExtractFileName(port) + '.lockfile';
   {$ELSE}
-  lockFile:=fLockFilesDirectory + PathDelim + port + '.lockfile';
+  Result:=fLockFilesDirectory + PathDelim + port + '.lockfile';
   {$ENDIF}
-  if FileExists(lockFile) then DeleteFile(lockFile);
-  FileCreate(lockFile);
-  Result:=lockFile;
+end;
+
+function TSerialPortDiscover.LockPort(port: String):String;
+var
+  lf: String;
+begin
+  lf:=LockFile(port);
+  if FileExists(lf) then DeleteFile(lf);
+  FileCreate(lf);
+  Result:=lf;
 end;
 
 function TSerialPortDiscover.Discover(params: TSerialPortDiscoverParams): Integer;
 var
   searchResult: TSearchRec;
+  lf: String;
   i: Integer = 0;
 begin
   {$IFDEF DARWIN}
   if FindFirst('/dev/tty.*', faAnyFile, searchResult) = 0 then begin repeat
     begin
-      if (searchResult.Name <> 'tty.Bluetooth-Incoming-Port') and (searchResult.Name <> 'tty.wlan-debug') and (searchResult.Name <> 'tty.debug-console') then
+      lf:=LockFile(searchResult.Name);
+      if not FileExists(lf) and (searchResult.Name <> 'tty.Bluetooth-Incoming-Port') and (searchResult.Name <> 'tty.wlan-debug') and (searchResult.Name <> 'tty.debug-console') then
       begin
         SetLength(fAutoDiscoverThreads, i + 1);
-        fAutoDiscoverThreads[i]:=TSerialPortDiscoverThread.Create(('/dev/' + searchResult.Name), params, (fLockFilesDirectory + PathDelim + searchResult.Name + '.lockfile' ));
+        fAutoDiscoverThreads[i]:=TSerialPortDiscoverThread.Create(('/dev/' + searchResult.Name), params, lf);
         fAutoDiscoverThreads[i].OnTerminate:=@onAutoDiscoverThreadTerminate;
         fAutoDiscoverThreads[i].Start;
         Inc(i);
-        //Sleep(Random(500));
       end;
     end
       until FindNext(searchResult) <> 0;
@@ -135,8 +145,6 @@ begin
       else FormDebug.Log('[PortDiscover][' + params.fHandle + '] no serial ports found');
   end;
   {$ENDIF}
-
-
 end;
 
 procedure TSerialPortDiscover.onAutoDiscoverThreadTerminate(Sender: TObject);
@@ -162,6 +170,14 @@ begin
   end;
 end;
 
+procedure TSerialPortDiscover.Terminate;
+var
+  thread: TSerialPortDiscoverThread;
+begin
+  for thread in fAutoDiscoverThreads do
+    thread.Terminate;
+end;
+
 { TSerialPortDiscoverThread }
 
 constructor TSerialPortDiscoverThread.Create(port: String; params: TSerialPortDiscoverParams; lockFile: String);
@@ -184,7 +200,6 @@ begin
   if not FileExists(fLockFile) then
   begin
     FileCreate(fLockFile);
-
     comport:=TBlockSerial.Create;
     comport.LinuxLock:=False;
     comport.NonBlock:=True;
@@ -193,27 +208,29 @@ begin
     FormDebug.Log('[PortDiscoverThread] execute -> ' + fParams.fHandle + ' -> ' + fPort +  ' -> ' + comport.LastErrorDesc + ' code: ' + Inttostr(comport.LastError));
     if comport.LastError = 0 then
     begin
+      if fParams.fDelay > 0 then Sleep(fParams.fDelay);
       comport.SendString(fParams.fSend + fParams.fDelimiter);
-      Sleep(300);
-      payload:=Trim(AnsiToUtf8(comport.RecvTerminated(10, fParams.fDelimiter)));
-      while payload <> '' do begin
-        if ContainsText(payload, fParams.fExpect) then begin
-          FormDebug.Log('[PortDiscoverThread] won ' + fParams.fHandle + ' -> ' + fPort);
-          fResult:=1;
-        end;
+      comport.Flush;
+      if comport.LastError = 0 then
+      begin
+        if fParams.fDelay > 0 then Sleep(fParams.fDelay);
         payload:=Trim(AnsiToUtf8(comport.RecvTerminated(10, fParams.fDelimiter)));
+        while payload <> '' do begin
+          if ContainsText(payload, fParams.fExpect) then begin
+            FormDebug.Log('[PortDiscoverThread] won ' + fParams.fHandle + ' -> ' + fPort);
+            fResult:=1;
+          end;
+          payload:=Trim(AnsiToUtf8(comport.RecvTerminated(10, fParams.fDelimiter)));
+        end;
       end;
     end;
-    comport.CloseSocket;
-    FreeAndNil(comport);
-
-    if fResult = -1 then DeleteFile(fLockFile);
+    comport.Free;
+    if fResult = -1 then DeleteFile(fLockFile); // not this port - delete lockfile
   end;
 
   if fResult = -1 then fResult:=0;
 
-  FormDebug.Log('[PortDiscoverThread] terminate -> ' + fParams.fHandle + ' -> ' + fPort );
+  FormDebug.Log('[PortDiscoverThread] terminate -> ' + fParams.fHandle + ' -> ' + fPort);
 end;
 
 end.
-

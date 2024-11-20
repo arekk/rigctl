@@ -6,7 +6,6 @@ object FormSettings: TFormSettings
   Caption = 'Settings'
   ClientHeight = 516
   ClientWidth = 398
-  OnClose = FormClose
   OnCreate = FormCreate
   OnShow = FormShow
   LCLVersion = '3.7.0.0'

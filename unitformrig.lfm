@@ -9,7 +9,6 @@ object FormRig: TFormRig
   KeyPreview = True
   OnClose = FormClose
   OnCreate = FormCreate
-  OnDestroy = FormDestroy
   OnKeyDown = FormKeyDown
   OnShow = FormShow
   LCLVersion = '3.7.0.0'
@@ -432,10 +431,5 @@ object FormRig: TFormRig
       TabOrder = 1
       TabStop = True
     end
-  end
-  object Timer1: TTimer
-    Enabled = False
-    OnTimer = Timer1Timer
-    Left = 200
   end
 end

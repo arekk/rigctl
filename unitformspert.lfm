@@ -10,81 +10,81 @@ object FormSpert: TFormSpert
   KeyPreview = True
   OnClose = FormClose
   OnCreate = FormCreate
-  OnDestroy = FormDestroy
   OnKeyDown = FormKeyDown
   OnShow = FormShow
   LCLVersion = '3.7.0.0'
   object GroupBox2: TGroupBox
     Left = 2
-    Height = 57
+    Height = 58
     Top = 88
     Width = 277
     Align = alTop
-    AutoSize = True
     BorderSpacing.Around = 2
     BorderSpacing.InnerBorder = 2
     Caption = 'ATU'
-    ClientHeight = 30
+    ClientHeight = 31
     ClientWidth = 267
     TabOrder = 1
-    object PanelATUColor: TPanel
-      Left = 167
+    object PanelAtuLC: TPanel
+      Left = 120
       Height = 24
       Top = 1
-      Width = 24
-      BevelColor = clYellow
-      BorderWidth = 1
-      BorderStyle = bsSingle
-      Color = clGray
-      ParentBackground = False
-      ParentColor = False
-      TabOrder = 1
-    end
-    object Button4: TButton
-      Left = 192
-      Height = 25
-      Top = 1
-      Width = 72
-      Caption = 'Tune'
-      TabOrder = 2
-      OnClick = Button4Click
-    end
-    object PanelATUState: TPanel
-      Left = 0
-      Height = 24
-      Top = 1
-      Width = 72
-      BevelColor = clYellow
-      BorderWidth = 1
-      BorderStyle = bsSingle
+      Width = 79
+      BevelColor = clBlack
+      BevelOuter = bvNone
       Color = clGray
       Font.Color = clWhite
+      Font.Height = -11
+      ParentBackground = False
+      ParentColor = False
+      ParentFont = False
+      TabOrder = 1
+    end
+    object PanelAtuSWR: TPanel
+      Left = 0
+      Height = 24
+      Top = 0
+      Width = 52
+      BevelColor = clBlack
+      BevelOuter = bvNone
+      Color = clGray
+      Font.Color = clWhite
+      Font.Height = -11
       ParentBackground = False
       ParentColor = False
       ParentFont = False
       TabOrder = 0
     end
-    object Button6: TButton
-      Left = 80
-      Height = 25
-      Top = 0
-      Width = 64
+    object BitBtnAtu: TBitBtn
+      Left = 55
+      Height = 31
+      Top = -3
+      Width = 62
       Caption = 'ATU'
+      OnClick = BitBtnAtuClick
+      TabOrder = 2
+    end
+    object ButtonAtuTune: TBitBtn
+      Left = 202
+      Height = 31
+      Top = -3
+      Width = 62
+      Caption = 'Tune'
+      OnClick = ButtonAtuTuneClick
       TabOrder = 3
-      OnClick = Button6Click
     end
   end
   object GroupBox3: TGroupBox
     Left = 2
-    Height = 123
-    Top = 147
+    Height = 122
+    Top = 148
     Width = 277
     Align = alClient
     AutoSize = True
     BorderSpacing.Around = 2
     BorderSpacing.InnerBorder = 2
     Caption = 'Status'
-    ClientHeight = 96
+    ClientHeight = 95
     ClientWidth = 267
     ParentBackground = False
     ParentColor = False
@@ -320,16 +320,5 @@ object FormSpert: TFormSpert
       OnClick = BitBtnLockTxClick
       TabOrder = 5
     end
-  end
-  object TimerState: TTimer
-    Enabled = False
-    OnTimer = TimerStateTimer
-    Left = 152
-  end
-  object TimerCleanup: TTimer
-    Enabled = False
-    Interval = 10000
-    OnTimer = TimerCleanupTimer
-    Left = 88
   end
 end
