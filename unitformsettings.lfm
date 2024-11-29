@@ -70,9 +70,9 @@ object FormSettings: TFormSettings
       TabOrder = 0
     end
     object Label2: TLabel
-      Left = 0
+      Left = 1
       Height = 16
-      Top = 24
+      Top = 28
       Width = 63
       Caption = 'Serial port'
     end
@@ -110,13 +110,13 @@ object FormSettings: TFormSettings
   end
   object GroupBox3: TGroupBox
     Left = 0
-    Height = 104
+    Height = 133
     Top = 158
     Width = 398
     Align = alTop
     AutoSize = True
     Caption = 'TRX'
-    ClientHeight = 77
+    ClientHeight = 106
     ClientWidth = 388
     TabOrder = 3
     object Label3: TLabel
@@ -127,7 +127,7 @@ object FormSettings: TFormSettings
       Caption = 'Serial port'
     end
     object ComboBox3: TComboBox
-      Left = 91
+      Left = 96
       Height = 20
       Top = 24
       Width = 280
@@ -137,29 +137,29 @@ object FormSettings: TFormSettings
       TabOrder = 0
     end
     object CheckBox2: TCheckBox
-      Left = 5
+      Left = 1
       Height = 18
-      Top = 56
+      Top = 85
       Width = 148
       Caption = 'FLRIG server enabled'
       TabOrder = 1
     end
     object Label4: TLabel
-      Left = 160
+      Left = 152
       Height = 16
-      Top = 58
+      Top = 87
       Width = 106
       Caption = 'FLRIG server port'
     end
     object SpinEdit1: TSpinEdit
-      Left = 283
+      Left = 272
       Height = 21
-      Top = 56
+      Top = 85
       Width = 86
       TabOrder = 2
     end
     object ComboBox4: TComboBox
-      Left = 91
+      Left = 96
       Height = 18
       Top = 0
       Width = 143
@@ -175,15 +175,32 @@ object FormSettings: TFormSettings
       Width = 37
       Caption = 'Model'
     end
+    object ComboBox5: TComboBox
+      Left = 96
+      Height = 18
+      Top = 48
+      Width = 143
+      ItemHeight = 26
+      ReadOnly = True
+      Style = csDropDownList
+      TabOrder = 4
+    end
+    object Label8: TLabel
+      Left = 1
+      Height = 16
+      Top = 48
+      Width = 66
+      Caption = 'Port speed'
+    end
   end
   object GroupBox4: TGroupBox
     Left = 0
-    Height = 206
-    Top = 262
+    Height = 177
+    Top = 291
     Width = 398
     Align = alClient
     Caption = 'Macros'
-    ClientHeight = 179
+    ClientHeight = 150
     ClientWidth = 388
     TabOrder = 4
     object CheckBox5: TCheckBox

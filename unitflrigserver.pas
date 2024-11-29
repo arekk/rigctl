@@ -150,9 +150,10 @@ begin
         'rig.get_bwB': CurrentOutput:=XML_BW_REPLY;
 
         'rig.get_AB': begin
-          if Rig.getVfo = 0
-            then CurrentOutput:=Format(XML_STR_REPLY, ['A'])
-            else CurrentOutput:=Format(XML_STR_REPLY, ['B'])
+          case Rig.getVfo of
+            RigVFO_A: CurrentOutput:=Format(XML_STR_REPLY, ['A']);
+            RigVFO_B: CurrentOutput:=Format(XML_STR_REPLY, ['B']);
+          end;
         end;
 
         'rig.get_ptt': begin

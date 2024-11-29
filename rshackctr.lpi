@@ -22,7 +22,7 @@
       <UseVersionInfo Value="True"/>
       <AutoIncrementBuild Value="True"/>
       <RevisionNr Value="1"/>
-      <BuildNr Value="1"/>
+      <BuildNr Value="2"/>
     </VersionInfo>
     <BuildModes>
       <Item Name="Default" Default="True"/>
@@ -158,6 +158,16 @@
         <Filename Value="uniteventsinterface.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="UnitEventsInterface"/>
+      </Unit>
+      <Unit>
+        <Filename Value="unitrigft991.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="UnitRigFT991"/>
+      </Unit>
+      <Unit>
+        <Filename Value="unitrigdummy.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="UnitRigDummy"/>
       </Unit>
     </Units>
   </ProjectOptions>

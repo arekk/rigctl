@@ -9,6 +9,12 @@ uses
   UnitEventsInterface;
 
 type
+  TRigVFO = (RigVFO_A, RigVFO_B);
+
+  TRigBand = (RigBand_160, RigBand_80, RigBand_60, RigBand_40, RigBand_30, RigBand_20, RigBand_17, RigBand_15, RigBand_12, RigBand_10, RigBand_6);
+
+  TRigMode = (RigMode_USB, RigMode_LSB, RigMode_CW);
+
   TRig = interface
     procedure Start;
     procedure Stop;
@@ -49,7 +55,7 @@ type
     function getVfoA_mode:String;
     function getVfoB_frq:Longword;
     function getVfoB_mode:String;
-    function getVfo:Byte;
+    function getVfo:TRigVFO;
     function getMode:String;
     function getFrq:Longword;
     function getBand:Byte;

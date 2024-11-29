@@ -30,6 +30,7 @@ type
     ComboBox2: TComboBox;
     ComboBox3: TComboBox;
     ComboBox4: TComboBox;
+    ComboBox5: TComboBox;
     GroupBox1: TGroupBox;
     GroupBox2: TGroupBox;
     GroupBox3: TGroupBox;
@@ -41,6 +42,7 @@ type
     Label5: TLabel;
     Label6: TLabel;
     Label7: TLabel;
+    Label8: TLabel;
     Panel1: TPanel;
     SpinEdit1: TSpinEdit;
     SpinEdit2: TSpinEdit;
@@ -90,8 +92,17 @@ begin
   ComboBox4.Items.Clear;
   ComboBox4.Items.Add('');
   ComboBox4.Items.Add(TSettingsTrx.FTDX10);
+  ComboBox4.Items.Add(TSettingsTrx.FT991A);
   if ComboBox4.Items.IndexOf(Configuration.Settings.trx) >= 0
     then ComboBox4.ItemIndex:=ComboBox4.Items.IndexOf(Configuration.Settings.trx);
+
+  ComboBox5.Items.Clear;
+  ComboBox5.Items.Add('4800');
+  ComboBox5.Items.Add('9600');
+  ComboBox5.Items.Add('19200');
+  ComboBox5.Items.Add('38400');
+  if ComboBox5.Items.IndexOf(IntToStr(Configuration.Settings.trxPortRate)) >= 0
+    then ComboBox5.ItemIndex:=ComboBox5.Items.IndexOf(IntToStr(Configuration.Settings.trxPortRate));
 
   // FLRIG
   CheckBox2.Checked:=Configuration.Settings.flrigServerEnabled;
@@ -143,11 +154,13 @@ begin
     then Configuration.Settings.spertPort:=ComboBox2.Items[ComboBox2.ItemIndex];
 
   // RIG
-  if ((ComboBox4.ItemIndex >= 0) and (Configuration.Settings.trx <> ComboBox4.Items[ComboBox4.ItemIndex])) or ((ComboBox3.ItemIndex >= 0) and (Configuration.Settings.trxPort <> ComboBox3.Items[ComboBox3.ItemIndex]))
+  if ((ComboBox4.ItemIndex >= 0) and (Configuration.Settings.trx <> ComboBox4.Items[ComboBox4.ItemIndex])) or ((ComboBox3.ItemIndex >= 0) and (Configuration.Settings.trxPort <> ComboBox3.Items[ComboBox3.ItemIndex])) or ((ComboBox5.ItemIndex >= 0) and (Configuration.Settings.trxPortRate <> StrToInt(ComboBox5.Items[ComboBox5.ItemIndex])))
     then trxReloadRequired:=True;
 
   if ComboBox4.ItemIndex >= 0
     then Configuration.Settings.trx:=ComboBox4.Items[ComboBox4.ItemIndex];
+  if ComboBox5.ItemIndex >= 0
+    then Configuration.Settings.trxPortRate:=StrToInt(ComboBox5.Items[ComboBox5.ItemIndex]);
   if ComboBox3.ItemIndex >= 0
     then Configuration.Settings.trxPort:=ComboBox3.Items[ComboBox3.ItemIndex];
 

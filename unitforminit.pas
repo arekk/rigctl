@@ -13,6 +13,8 @@ uses
   Dialogs,
   Menus,
   ExtCtrls,
+  LCLType,
+  LCLIntf,
   UnitSettings,
   UnitSerialPortAutoDiscover,
   UnitEventsInterface,
@@ -110,10 +112,10 @@ var
   settingsForm: TFormSettings;
 begin
   Configuration.Load;
+  SetUp;
 
   settingsForm:=TFormSettings(Sender);
 
-  SetUp;
   FormSpert.SetUp(settingsForm.spertReloadRequired);
   FormRig.SetUp(settingsForm.trxReloadRequired, settingsForm.flrigReloadRequired);
 
@@ -123,9 +125,8 @@ end;
 procedure TFormInit.SetUp;
 begin
   // window main menu
-  MenuItem5.Visible:=Configuration.IsTrxValid;
-  MenuItem5.Caption:=Configuration.Settings.trx;
-
+  MenuItem5.Caption:=Configuration.Settings.Trx;
+  MenuItem5.Visible:=(Configuration.Settings.Trx <> '');
   MenuItem6.Visible:=Configuration.Settings.spertEnabled;
   MenuItem7.Visible:=Configuration.Settings.Debug;
 
@@ -140,9 +141,9 @@ begin
   if FormDebug.Visible and not Configuration.Settings.Debug
     then FormDebug.Close;
 
-  if FormRig.Visible and not Configuration.IsTrxValid
+  if FormRig.Visible and (Configuration.Settings.trx = '')
     then FormRig.Close;
-  if not FormRig.Visible and Configuration.IsTrxValid
+  if not FormRig.Visible and (Configuration.Settings.trx <> '')
     then FormRig.Show;
 
   if FormSpert.Visible and not Configuration.Settings.spertEnabled
@@ -173,7 +174,7 @@ begin
   helpKeboard:=TStringList.Create;
   helpKeboard.Delimiter:=#13;
 
-  if Configuration.IsTrxValid then
+  if Configuration.Settings.Trx <> '' then
   begin
     helpKeboard.Add('TRX');
     helpKeboard.Add('');
@@ -200,15 +201,21 @@ begin
   MessageDlg('Keyboard shortcuts', helpKeboard.GetText, mtCustom, [mbOK], 0);
 end;
 
+procedure TFormInit.MenuItem11Click(Sender: TObject);
+var
+  res : Integer;
+begin
+  res:=PromptUser('Please confirm you want to delete all SPert ATU tuning memories. All saved SWL and LC memories will be deleted as well.', idDialogConfirm, [idButtonOk, idButtonCancel], 0, mrCancel);
+  if res = mrOk then
+  begin
+    FormSpert.Spert.resetAtuMem;
+    FormSpert.SpertDatabase.Clear;
+  end;
+end;
+
 procedure TFormInit.MenuItem12Click(Sender: TObject);
 begin
   FormSpert.Spert.setFan(SpertFanLevel_Max);
-end;
-
-procedure TFormInit.MenuItem11Click(Sender: TObject);
-begin
-  FormSpert.Spert.resetAtuMem;
-  FormSpert.SpertDatabase.Clear;
 end;
 
 procedure TFormInit.MenuItem13Click(Sender: TObject);

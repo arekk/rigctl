@@ -208,14 +208,21 @@ begin
     FormDebug.Log('[PortDiscoverThread] execute -> ' + fParams.fHandle + ' -> ' + fPort +  ' -> ' + comport.LastErrorDesc + ' code: ' + Inttostr(comport.LastError));
     if comport.LastError = 0 then
     begin
-      if fParams.fDelay > 0 then Sleep(fParams.fDelay);
-      comport.SendString(fParams.fSend + fParams.fDelimiter);
-      comport.Flush;
+      if fParams.fDelay > 0
+        then Sleep(fParams.fDelay);
+
+      comport.SendString(fParams.fSend + fParams.fDelimiter + fParams.fSend + fParams.fDelimiter); // send the same command twice to close by proper delimiter command sent in other thread
+
       if comport.LastError = 0 then
       begin
-        if fParams.fDelay > 0 then Sleep(fParams.fDelay);
+        if fParams.fDelay > 0
+          then Sleep(fParams.fDelay);
+
         payload:=Trim(AnsiToUtf8(comport.RecvTerminated(10, fParams.fDelimiter)));
         while payload <> '' do begin
+
+          FormDebug.Log('[PortDiscoverThread] payload -> ' + fParams.fHandle + ' -> ' + fPort + ' -> ' + payload);
+
           if ContainsText(payload, fParams.fExpect) then begin
             FormDebug.Log('[PortDiscoverThread] won ' + fParams.fHandle + ' -> ' + fPort);
             fResult:=1;

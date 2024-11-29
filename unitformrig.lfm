@@ -12,7 +12,6 @@ object FormRig: TFormRig
   OnKeyDown = FormKeyDown
   OnShow = FormShow
   LCLVersion = '3.7.0.0'
-  Visible = True
   object GroupBox1: TGroupBox
     Left = 0
     Height = 100

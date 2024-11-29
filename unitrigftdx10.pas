@@ -29,7 +29,7 @@ type
       vfoB_frq: Longword;
       vfoA_mode: String;
       vfoB_mode: String;
-      vfo: Byte;
+      vfo: TRigVFO;
       split: Boolean;
       ptt: Boolean;
       frq: Longword;
@@ -65,7 +65,6 @@ type
   TFTdx10rig = class(TInterfacedObject, TRig)
     private
       running: Boolean;
-      configuration: TConfiguration;
       autoDiscover: TSerialPortDiscover;
       autoDiscoverLockFile: String;
       rigState: TFTdx10rigState;
@@ -81,17 +80,21 @@ type
     private
       procedure Connect(port: String);
       procedure Disconnect;
-      procedure Send(payload: String);
       procedure Read;
       procedure ProcessCmd(payload: String);
       procedure onTimerKeepAlive(Sender: TObject);
       procedure onPortDiscover(Sender: TObject);
       procedure onPortDiscoverFinish(Sender: TObject);
       procedure onTimerRead(Sender: TObject);
-      procedure SetVfoMode(vfo: Byte; mode: String);
+      procedure SetVfoMode(vfo: TRigVFO; mode: String);
       function modeToStateMode(mode: String): String;
       function frqToBand(frq: Longword):Byte;
       function pwrCalc(input: Byte): Byte;
+    protected
+      configuration: TConfiguration;
+    protected
+      function getSerialPortDiscoverParams: TSerialPortDiscoverParams; virtual;
+      procedure Send(payload: String);
     public
       constructor Create(Config: TConfiguration);
       destructor Destroy; override;
@@ -101,11 +104,11 @@ type
       procedure SetVfoB_frq(frq: Longword);
       procedure SetVfoA_mode(mode: String);
       procedure SetVfoB_mode(mode: String);
-      procedure SetSplit(active: Boolean);
+      procedure SetSplit(active: Boolean); virtual;
       procedure SetPtt(active: Boolean);
       procedure SetCurrentVFOMode(mode: String);
       procedure SetPwr(pwr: Byte);
-      procedure SetdrPortGain(gain: Byte);
+      procedure SetdrPortGain(gain: Byte); virtual;
       procedure toggleVox;
       procedure toggleDnr;
       procedure toggleDnf;
@@ -134,7 +137,7 @@ type
       function getVfoA_mode:String;
       function getVfoB_frq:Longword;
       function getVfoB_mode:String;
-      function getVfo: Byte;
+      function getVfo: TRigVFO;
       function getMode:String;
       function getFrq:Longword;
       function getBand:Byte;
@@ -184,7 +187,7 @@ begin
    vfoA_frq:=0;
    vfoB_frq:=0;
    frq:=0;
-   vfo:=0;
+   vfo:=RigVFO_A;
    fpwrMax:=0;
    fpwrSum:=0;
    fpwrCnt:=0;
@@ -227,6 +230,11 @@ begin
   timerKeepAlive.Enabled:=True;
 end;
 
+function TFTdx10rig.getSerialPortDiscoverParams: TSerialPortDiscoverParams;
+begin
+  Result:=TSerialPortDiscoverParams.Create(TSettingsTrx.FTDX10, Configuration.Settings.trxPortRate, Utf8ToAnsi(';'), Utf8ToAnsi('ID'), Utf8ToAnsi('ID0761'), 50)
+end;
+
 procedure TFTdx10rig.onTimerKeepAlive(Sender: TObject);
 var
   autoDiscoverThreads: Integer;
@@ -237,7 +245,7 @@ begin
     begin
       autoDiscover.OnSuccess:=@onPortDiscover;
       autoDiscover.OnFinish:=@onPortDiscoverFinish;
-      autoDiscoverThreads:=autoDiscover.Discover(TSerialPortDiscoverParams.Create('TFTdx10', Configuration.Settings.trxPortRate, Utf8ToAnsi(';'), Utf8ToAnsi('ID'), Utf8ToAnsi('ID0761'), 50));
+      autoDiscoverThreads:=autoDiscover.Discover(getSerialPortDiscoverParams);
       if autoDiscoverThreads > 0 then
       begin
         FormDebug.Log(Format('[Rig] disabling keep-alive and waiting for %d auto-discover threads to finish', [autoDiscoverThreads]));
@@ -254,7 +262,7 @@ begin
   FormDebug.Log(Format('[Rig] connection: %s [%d]', [BoolToStr(comportConnected, True), keepAliveCounter]));
 
   if running and comportConnected then Inc(keepAliveCounter);
-  if running and comportConnected and (keepAliveCounter > 5) then Disconnect;
+  if running and (keepAliveCounter > 5) then Disconnect;
 end;
 
 procedure TFTdx10rig.onPortDiscover(Sender: TObject);
@@ -421,7 +429,12 @@ begin
 
     'PC': rigState.pwr:=StrToInt(payload.Substring(2, 3));
 
-    'VS': rigState.vfo:=StrToInt(payload.Substring(2, 1));
+    'VS': begin
+      case payload.Substring(2, 1) of
+        '0': rigState.vfo:=RigVFO_A;
+        '1': rigState.vfo:=RigVFO_B;
+      end;
+    end;
 
     'MD': begin
       case payload.Substring(2, 1) of
@@ -429,19 +442,19 @@ begin
         '1': rigState.vfoB_mode:=modeToStateMode(payload.Substring(3, 1));
       end;
       case rigState.vfo of
-        0: rigState.mode:=rigState.vfoA_mode;
-        1: rigState.mode:=rigState.vfoB_mode;
+        RigVFO_A: rigState.mode:=rigState.vfoA_mode;
+        RigVFO_B: rigState.mode:=rigState.vfoB_mode;
       end
     end;
 
     'FA': begin
       rigState.vfoA_frq:=StrToInt(payload.Substring(2, 9));
-      if rigState.vfo = 0 then rigState.frq:=rigState.vfoA_frq;
+      if rigState.vfo = RigVFO_A then rigState.frq:=rigState.vfoA_frq;
     end;
 
     'FB': begin
       rigState.vfoB_frq:=StrToInt(payload.Substring(2, 9));
-      if rigState.vfo = 1 then rigState.frq:=rigState.vfoB_frq;
+      if rigState.vfo = RigVFO_B then rigState.frq:=rigState.vfoB_frq;
     end;
 
     'ST': rigState.split:=(StrToInt(payload.Substring(2, 1)) > 0);
@@ -555,18 +568,23 @@ end;
 
 procedure TFTdx10rig.SetVfoA_Mode(mode: String);
 begin
-  SetVfoMode(0, mode);
+  SetVfoMode(RigVFO_A, mode);
 end;
 
 procedure TFTdx10rig.SetVfoB_Mode(mode: String);
 begin
-  SetVfoMode(1, mode);
+  SetVfoMode(RigVFO_B, mode);
 end;
 
-procedure TFTdx10rig.SetVfoMode(vfo: Byte; mode: String);
+procedure TFTdx10rig.SetVfoMode(vfo: TRigVFO; mode: String);
 var
   translatedMode: String;
+  translatedVfo: String;
 begin
+  case vfo of
+    RigVFO_A: translatedVfo:='0';
+    RigVFO_B: translatedVfo:='1';
+  end;
   translatedMode:='';
   case mode of
    'LSB': translatedMode:='1';
@@ -585,7 +603,7 @@ begin
    'PSK': translatedMode:='E';
    'DATA-FM-N': translatedMode:='F';
   end;
-  if translatedMode <> '' then Send('MD' + IntToStr(vfo) + translatedMode);
+  if translatedMode <> '' then Send('MD' + translatedVfo + translatedMode);
 end;
 
 procedure TFTdx10rig.SetSplit(active: Boolean);
@@ -752,7 +770,7 @@ begin
   Result:=rigState.vfoB_mode;
 end;
 
-function TFTdx10rig.getVfo: Byte;
+function TFTdx10rig.getVfo: TRigVFO;
 begin
   Result:=rigState.vfo;
 end;

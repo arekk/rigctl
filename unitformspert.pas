@@ -23,7 +23,8 @@ uses
   UnitSettings,
   UnitSpertDatabase,
   UnitSpert,
-  UnitFormRig;
+  UnitFormRig,
+  UnitFormDebug;
 
 type
   { TFormSpert }
@@ -122,10 +123,11 @@ begin
   BitBtnAtu.Glyph.Assign(picBallBlue);
 
   SpertDatabase.Open;
-
   Spert.Start;
 
   Application.ProcessMessages;
+
+  FormDebug.Log('TFormSpert: show');
 end;
 
 procedure TFormSpert.FormClose(Sender: TObject; var CloseAction: TCloseAction);
@@ -135,8 +137,6 @@ begin
   TimerFormClose.Interval:=10;
   TimerFormClose.Enabled:=True;
   TimerFormClose.OnTimer:=@TimerFormCloseTimer;
-
-  CloseAction:=caHide;
 end;
 
 procedure TFormSpert.TimerFormCloseTimer(Sender: TObject);

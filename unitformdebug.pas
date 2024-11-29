@@ -59,7 +59,6 @@ end;
 procedure TFormDebug.FormShow(Sender: TObject);
 begin
   NSView(Handle).window.setFrameAutosaveName(NSSTR(ClassName));
-  CheckBox1.Checked:=True;
 end;
 
 procedure TFormDebug.Button1Click(Sender: TObject);
@@ -83,14 +82,14 @@ procedure TFormDebug.Log(msg: String);
 begin
   if Configuration.Settings.Debug then
   begin
-    LastLogMessage:=msg;
+    LastLogMessage:=DateTimeToStr(Now) + ' ' + msg;
     TThread.Synchronize(nil, @LogProc);
   end;
 end;
 
 procedure TFormDebug.LogProc;
 begin
-  if (LastLogMessage <> '') and Visible and CheckBox1.Checked then
+  if (LastLogMessage <> '') and CheckBox1.Checked then
   begin
     Memo1.Lines.BeginUpdate;
     Memo1.Lines.Add(LastLogMessage);

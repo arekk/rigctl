@@ -17,7 +17,7 @@ uses
   UnitFormDebug,
   UnitFormRig,
   UnitFormSpert,
-  UnitFormSettings;
+  UnitFormSettings, UnitRigDummy;
 
 {$R *.res}
 

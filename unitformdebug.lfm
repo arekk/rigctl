@@ -2,10 +2,10 @@ object FormDebug: TFormDebug
   Left = 734
   Height = 529
   Top = 175
-  Width = 435
+  Width = 524
   Caption = 'Debug'
   ClientHeight = 529
-  ClientWidth = 435
+  ClientWidth = 524
   OnClose = FormClose
   OnCreate = FormCreate
   OnDestroy = FormDestroy
@@ -15,7 +15,7 @@ object FormDebug: TFormDebug
     Left = 0
     Height = 495
     Top = 0
-    Width = 435
+    Width = 524
     Align = alClient
     Lines.Strings = (
       ''
@@ -28,10 +28,10 @@ object FormDebug: TFormDebug
     Left = 0
     Height = 34
     Top = 495
-    Width = 435
+    Width = 524
     Align = alBottom
     ClientHeight = 34
-    ClientWidth = 435
+    ClientWidth = 524
     TabOrder = 1
     object CheckBox1: TCheckBox
       Left = 368
@@ -39,6 +39,8 @@ object FormDebug: TFormDebug
       Top = 8
       Width = 123
       Caption = 'debug messages'
+      Checked = True
+      State = cbChecked
       TabOrder = 0
     end
     object Button1: TButton

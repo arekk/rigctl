@@ -203,7 +203,7 @@ begin
     begin
       autoDiscover.OnSuccess:=@onPortDiscover;
       autoDiscover.OnFinish:=@onPortDiscoverFinish;
-      if autoDiscover.Discover(TSerialPortDiscoverParams.Create('SPert', Configuration.Settings.spertPortRate, COMPORT_DELIM, Utf8ToAnsi('PA?'), Utf8ToAnsi('PA_SP7SP'), 450)) > 0
+      if autoDiscover.Discover(TSerialPortDiscoverParams.Create('SPert', Configuration.Settings.spertPortRate, COMPORT_DELIM, Utf8ToAnsi('PA?'), Utf8ToAnsi('PA_SP7SP'), 150)) > 0
         then timerKeepAlive.Enabled:=False;
     end
     else
@@ -222,7 +222,7 @@ begin
     Inc(keepAliveCounter)
   end;
 
-  if running and comportConnected and (keepAliveCounter > 5) then Disconnect;
+  if running and (keepAliveCounter > 5) then Disconnect;
 end;
 
 procedure TSpert.onPortDiscover(Sender: TObject);

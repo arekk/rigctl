@@ -14,6 +14,7 @@ type
 
   TSettingsTrx = class
     const FTDX10 = 'FTdx10';
+    const FT991A = 'FT-991A';
   end;
 
   TSettings = record
@@ -52,7 +53,6 @@ type
   TConfiguration = class
     procedure Load;
     procedure Save;
-    function IsTrxValid:Boolean;
 
     public
       constructor Create(applicationLocation: String);
@@ -81,11 +81,6 @@ begin
   iniMutex:=TCriticalSection.Create;
 end;
 
-function TConfiguration.IsTrxValid:Boolean;
-begin
-   Result:=(Settings.trx = TSettingsTrx.FTDX10);
-end;
-
 function TConfiguration.getConfigDirectory:String;
 begin
   Result:=configDirectory;
@@ -107,7 +102,7 @@ begin
     Settings.spertStartupFan:=iniFile.ReadInteger('SPert', 'DefaultFan', 0);
     Settings.spertAntenna:=iniFile.ReadString('SPert', 'Antenna', 'Default');
 
-    Settings.trx:=iniFile.ReadString('Trx', 'Model', '');
+    Settings.trx:=Trim(iniFile.ReadString('Trx', 'Model', ''));
     Settings.trxPort:=iniFile.ReadString('Trx', 'Port', 'AUTO');
     Settings.trxPortRate:=iniFile.ReadInteger('Trx', 'PortRate', 38400);
     Settings.trxPool:=iniFile.ReadInteger('Trx', 'Pool', 200);

@@ -23,7 +23,10 @@ uses
   UnitSettings,
   UnitFlrigServer,
   UnitRig,
-  UnitRigFTdx10;
+  UnitRigDummy,
+  UnitRigFTdx10,
+  UnitRigFT991A,
+  UnitFormDebug;
 
 type
   { TFormRig }
@@ -99,9 +102,11 @@ type
     picBallBlue: TBitmap;
     TimerFormClose: TTimer;
   private
+    procedure SetUpRig;
     procedure UpdateUI(Sender: TObject);
     procedure TimerFormCloseTimer(Sender: TObject);
     function RigFrequencyToCaption(frq: LongWord): String;
+
   public
     Rig: TRig;
   public
@@ -122,19 +127,13 @@ begin
   Configuration:=TConfiguration.Create(Application.Location);
   Configuration.Load;
 
-  // curently ony FTdx10 is supported
-  Rig:=TFTdx10rig.Create(Configuration);
-  Rig.onState(@UpdateUI);
-
-  flRigServer:=TFlrigServer.Create(Configuration, Rig);
+  SetUpRig;
 
   picBallGreen:=TBitMap.Create;
   picBallGreen.LoadFromResourceName(HInstance, 'BALL_GREEN_ICON');
 
   picBallBlue:=TBitMap.Create;
   picBallBlue.LoadFromResourceName(HInstance, 'BALL_BLUE_ICON');
-
-  Caption:=Configuration.Settings.trx;
 end;
 
 procedure TFormRig.FormShow(Sender: TObject);
@@ -152,10 +151,10 @@ begin
   BitBtnTXW.Glyph.Assign(picBallBlue);
 
   Rig.Start;
-
+  FlRigServer.Start;
   Application.ProcessMessages;
 
-  FlRigServer.Start;
+  FormDebug.Log('TFormRig: show');
 end;
 
 procedure TFormRig.FormClose(Sender: TObject; var CloseAction: TCloseAction);
@@ -164,8 +163,6 @@ begin
   TimerFormClose.Interval:=5;
   TimerFormClose.Enabled:=True;
   TimerFormClose.OnTimer:=@TimerFormCloseTimer;
-
-  CloseAction:=caHide;
 end;
 
 procedure TFormRig.TimerFormCloseTimer(Sender: TObject);
@@ -238,8 +235,8 @@ begin
       PanelVfoAB.Color:=clGreen;
       PanelVfoAB.Font.Color:=clWhite;
       case Rig.getVfo of
-        0: PanelVfoAB.Caption:='A';
-        1: PanelVfoAB.Caption:='B';
+        RigVFO_A: PanelVfoAB.Caption:='A';
+        RigVFO_B: PanelVfoAB.Caption:='B';
       end;
       BitBtnSplit.Glyph.Assign(picBallBlue);
       BitBtnSplitPlus.Enabled:=False;
@@ -502,9 +499,26 @@ begin
    Result:='';
 end;
 
+procedure TFormRig.SetUpRig;
+begin
+  case Configuration.Settings.Trx of
+    TSettingsTrx.FTDX10: Rig:=TFTdx10rig.Create(Configuration);
+    TSettingsTrx.FT991A: Rig:=TFT991Arig.Create(Configuration);
+    else Rig:=TRigDummy.Create;
+  end;
+
+  Rig.onState(@UpdateUI);
+
+  flRigServer:=TFlrigServer.Create(Configuration, Rig);
+
+  Caption:=Configuration.Settings.trx;
+end;
+
 procedure TFormRig.SetUp(restartTrx: Boolean; restartFlrig: Boolean);
 begin
   Configuration.Load;
+
+  if restartTrx then SetUpRig;
 
   if restartFlrig then FlRigServer.Stop;
   if restartTrx then Rig.Stop;
