@@ -4,8 +4,8 @@ SPert 1000 ([https://rjk.com.pl/spert1000/](https://rjk.com.pl/spert1000/)) + ra
 
 **Supported radios:**
 
-* FTdx10
-* FT-991A (limited, w/o split)
+* Yaesu FTdx10
+* Yaesu FT-991A (limited, w/o split)
 
 ## Features:
 
@@ -29,7 +29,7 @@ Two separate windows, each can work independently, i.e., you can use the applica
 * S-meter
 * Monitor TX forwarded and reflected power
 * Band switch
-* Filters DNR, NB
+* Filters DNR, DNF
 * Split operations: on/off, up 5, up 10 with single click, TXW (listen on TX frequency)
 * Control output power and digital gain
 * Keyboard shortcuts
@@ -45,6 +45,7 @@ Two separate windows, each can work independently, i.e., you can use the applica
 Application is using patched LazSynaSer from https://github.com/JurassicPork/TLazSerial
 
 Application is using icons from following authors:
+
 * https://www.iconfinder.com/Allfreeicons
 * https://www.iconfinder.com/iconsets/developerkit
 
@@ -63,4 +64,10 @@ ln -s /Applications binaries/darwin_x86_64/Applications
 ```
 
 Run disk util (Narzędzie dyskowe) and use menu: File -> New image -> Image from folder.
+
+Finally after release:
+
+```
+rm -f binaries/darwin_x86_64/RadioShackCtl.app/Contents/MacOS/RadioShackCtl
+```
 
