@@ -53,6 +53,7 @@ type
     function getVfoB_mode:String;
     function getVfo:TRigVFO;
     function getMode:String;
+    function getModeCategory:String;
     function getFrq:Longword;
     function getBand:Byte;
     function getdrPortGain: Byte;
@@ -187,6 +188,11 @@ begin
 end;
 
 function TRigDummy.getMode:String;
+begin
+  Result:='';
+end;
+
+function TRigDummy.getModeCategory:String;
 begin
   Result:='';
 end;

@@ -40,6 +40,26 @@ type
 
 implementation
 
+{ Locale-safe Double to SQL literal. FPC's FloatToStr honors FormatSettings.DecimalSeparator,
+  which under pl_PL locale produces "1,5" — SQLite parses that as two separate columns and
+  the INSERT/UPDATE silently fails. Force '.' regardless of system locale. }
+function floatSql(x: Double): String;
+var
+  fs: TFormatSettings;
+begin
+  fs := DefaultFormatSettings;
+  fs.DecimalSeparator := '.';
+  fs.ThousandSeparator := #0;
+  Result := FloatToStr(x, fs);
+end;
+
+{ SQL single-quoted string literal with embedded apostrophes doubled per SQL standard.
+  Replaces the previous double-quoted form which SQLite treats as identifier-with-fallback. }
+function sqlStr(s: String): String;
+begin
+  Result := '''' + StringReplace(s, '''', '''''', [rfReplaceAll]) + '''';
+end;
+
 constructor TSpertDatabase.Create(Config: TConfiguration);
 begin
   Configuration:=Config;
@@ -104,20 +124,23 @@ end;
 procedure TSpertDatabase.insertAtuLC(frequency: Longword; L, C: Double; K: Byte);
 var
   Frq: Longword;
+  ant, ts: String;
   Sql: String;
   rCount: Integer;
 begin
   if active and (frequency > 0) and ((L > 0) or (C > 0)) then
   begin
     Frq:=Trunc(frequency / 1000) * 1000;
+    ant:=sqlStr(Configuration.Settings.spertAntenna);
+    ts:=IntToStr(DateTimeToUnix(Now()));
     databaseTransaction.StartTransaction;
-    databaseQuery.SQL.Text:='SELECT COUNT(*) FROM atu_LC_samples WHERE antenna = "' + Configuration.Settings.spertAntenna + '" AND frequency = ' + IntToStr(Frq);
+    databaseQuery.SQL.Text:='SELECT COUNT(*) FROM atu_LC_samples WHERE antenna = ' + ant + ' AND frequency = ' + IntToStr(Frq);
     databaseQuery.Open;
     rCount:=databaseQuery.Fields[0].AsInteger;
     databaseQuery.Close;
     if rCount = 0
-      then Sql:='INSERT INTO atu_LC_samples (antenna, frequency, L, C, K, ts) VALUES("' + Configuration.Settings.spertAntenna + '", ' + IntToStr(Frq)  + ', ' + FloatToStr(L) + ', ' + FloatToStr(C) + ', ' + IntToStr(K) + ', ' + IntToStr(DateTimeToUnix(Now())) + ')'
-      else Sql:='UPDATE atu_LC_samples SET L = ' + FloatToStr(L)  + ', C = '+ FloatToStr(C) +', K = '+ IntToStr(K) +', ts = ' + IntToStr(DateTimeToUnix(Now())) + ' WHERE antenna = "' + Configuration.Settings.spertAntenna + '" AND frequency = ' + IntToStr(Frq);
+      then Sql:='INSERT INTO atu_LC_samples (antenna, frequency, L, C, K, ts) VALUES(' + ant + ', ' + IntToStr(Frq) + ', ' + floatSql(L) + ', ' + floatSql(C) + ', ' + IntToStr(K) + ', ' + ts + ')'
+      else Sql:='UPDATE atu_LC_samples SET L = ' + floatSql(L) + ', C = ' + floatSql(C) + ', K = ' + IntToStr(K) + ', ts = ' + ts + ' WHERE antenna = ' + ant + ' AND frequency = ' + IntToStr(Frq);
     FormDebug.Log('[Spert] ' + Sql);
     databaseConnection.ExecuteDirect(sql);
     databaseTransaction.Commit;
@@ -125,13 +148,15 @@ begin
 end;
 
 function TSpertDatabase.matchLC(frequency: Longword; span: Integer; L, C: Double): TSpertDatabaseLCmatch;
+const
+  { L is in µH, smallest bank value 0.04. Epsilon below that but well above IEEE 754
+    round-trip noise (~1e-16) — catches a real bit-flip, ignores float precision drift. }
+  L_EPSILON = 0.001;
+  { C is in pF, smallest bank value 5. Same logic. }
+  C_EPSILON = 0.1;
 var
   Frq: Longword;
-  cnt: Integer = 0;
-  sumL: Double = 0;
-  sumC: Double = 0;
-  avgL: Double;
-  avgC: Double;
+  savedL, savedC: Double;
 begin
   Result:=SpertDatabaseLC_Unknown;
 
@@ -139,23 +164,25 @@ begin
   begin
     Frq:=Trunc(frequency / 1000) * 1000;
     databaseTransaction.StartTransaction;
-    databaseQuery.SQL.Text:=Format('SELECT L, C FROM atu_LC_samples WHERE antenna = "%s" AND (frequency BETWEEN %d AND %d)', [Configuration.Settings.spertAntenna, (Frq - span), (Frq + span)]);
+    { Pick the closest stored sample by frequency within span — antenna L/C varies
+      smoothly with frequency, so the nearest tuned point is the authoritative
+      reference for the current operating frequency. }
+    databaseQuery.SQL.Text:='SELECT L, C FROM atu_LC_samples WHERE antenna = ' + sqlStr(Configuration.Settings.spertAntenna) +
+      ' AND frequency BETWEEN ' + IntToStr(Frq - span) + ' AND ' + IntToStr(Frq + span) +
+      ' ORDER BY ABS(frequency - ' + IntToStr(Frq) + ') ASC LIMIT 1';
     databaseQuery.Open;
-    while not databaseQuery.EOF do begin
-      sumL:=sumL + databaseQuery.Fields[0].AsFloat;
-      sumC:=sumC + databaseQuery.Fields[1].AsFloat;
-      Inc(cnt);
-      databaseQuery.Next;
-    end;
-    databaseQuery.Close;
-    if cnt > 0 then
+    if not databaseQuery.EOF then
     begin
-      avgL:=(sumL / cnt);
-      avgC:=(sumC / cnt);
-      if (L <= (avgL * 2)) and (L >= (avgL / 2)) and (C <= (avgC * 2)) and (C >= (avgC / 2)) // this relates to TSpert.ATU_L/ATU_C - previous L/C is 2x smaller then current, next 2x bigger
+      savedL := databaseQuery.Fields[0].AsFloat;
+      savedC := databaseQuery.Fields[1].AsFloat;
+      { Exact match: identical bit patterns from calcAtu_LC produce identical Doubles,
+        and SQLite round-trip preserves them. Epsilon is precision-noise insurance,
+        not a tolerance window — a one-bit ATU change must register as NotMatch. }
+      if (Abs(L - savedL) < L_EPSILON) and (Abs(C - savedC) < C_EPSILON)
         then Result:=SpertDatabaseLC_Match
         else Result:=SpertDatabaseLC_NotMatch;
     end;
+    databaseQuery.Close;
     databaseTransaction.Commit;
   end;
 end;
@@ -163,20 +190,25 @@ end;
 procedure TSpertDatabase.insertSwr(frequency: Longword; swr: Double);
 var
   Frq: Longword;
+  ant, ts: String;
   Sql: String;
   rCount: Integer;
 begin
-  if active and (frequency > 0) then
+  { swr >= 0 guards against bogus negative readings; the caller is expected to
+    skip near-zero TX sessions (no real measurement) before reaching this point. }
+  if active and (frequency > 0) and (swr >= 0) then
   begin
     Frq:=Trunc(frequency / 1000) * 1000;
+    ant:=sqlStr(Configuration.Settings.spertAntenna);
+    ts:=IntToStr(DateTimeToUnix(Now()));
     databaseTransaction.StartTransaction;
-    databaseQuery.SQL.Text:='SELECT COUNT(*) FROM swr_samples WHERE antenna = "' + Configuration.Settings.spertAntenna + '" AND frequency = ' + IntToStr(Frq);
+    databaseQuery.SQL.Text:='SELECT COUNT(*) FROM swr_samples WHERE antenna = ' + ant + ' AND frequency = ' + IntToStr(Frq);
     databaseQuery.Open;
     rCount:=databaseQuery.Fields[0].AsInteger;
     databaseQuery.Close;
     if rCount = 0
-      then Sql:='INSERT INTO swr_samples (antenna, frequency, swr, ts) VALUES("' + Configuration.Settings.spertAntenna + '", ' + IntToStr(Frq)  + ', ' + FloatToStr(swr) + ', ' + IntToStr(DateTimeToUnix(Now())) + ')'
-      else Sql:='UPDATE swr_samples SET swr = ' + FloatToStr(swr)  + ', ts = ' + IntToStr(DateTimeToUnix(Now())) + ' WHERE antenna = "' + Configuration.Settings.spertAntenna + '" AND frequency = ' + IntToStr(Frq);
+      then Sql:='INSERT INTO swr_samples (antenna, frequency, swr, ts) VALUES(' + ant + ', ' + IntToStr(Frq) + ', ' + floatSql(swr) + ', ' + ts + ')'
+      else Sql:='UPDATE swr_samples SET swr = ' + floatSql(swr) + ', ts = ' + ts + ' WHERE antenna = ' + ant + ' AND frequency = ' + IntToStr(Frq);
     FormDebug.Log('[Spert] ' + Sql);
     databaseConnection.ExecuteDirect(sql);
     databaseTransaction.Commit;
@@ -186,17 +218,19 @@ end;
 function TSpertDatabase.estimateSwr(frequency: Longword; span: Integer): Double;
 var
   Frq: Longword;
-  Swr: String;
 begin
+  Result := -1;
   if active then
   begin
     Frq:=Trunc(frequency / 1000) * 1000;
     databaseTransaction.StartTransaction;
-    databaseQuery.SQL.Text:='SELECT AVG(swr) FROM swr_samples WHERE antenna = "' + Configuration.Settings.spertAntenna + '" AND frequency BETWEEN ' + IntToStr(Frq - span) + ' AND ' + IntToStr(Frq + span);
+    databaseQuery.SQL.Text:='SELECT AVG(swr) FROM swr_samples WHERE antenna = ' + sqlStr(Configuration.Settings.spertAntenna) + ' AND frequency BETWEEN ' + IntToStr(Frq - span) + ' AND ' + IntToStr(Frq + span);
     databaseQuery.Open;
-    Swr:=databaseQuery.Fields[0].AsString;
+    { AVG returns NULL when no rows match → IsNull check distinguishes that from a real 0.0 average.
+      AsFloat goes through the SQLite native API and is locale-independent (unlike AsString + StrToFloat). }
+    if not databaseQuery.Fields[0].IsNull then
+      Result := databaseQuery.Fields[0].AsFloat;
     databaseQuery.Close;
-    if Swr <> '' then Result:=StrToFloat(Swr) else Result:=-1;
     databaseTransaction.Commit;
   end;
 end;

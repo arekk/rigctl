@@ -213,7 +213,7 @@ begin
     end;
   end;
 
-  FormDebug.Log(Format('[Spert] connection: %s [%d]', [BoolToStr(comportConnected, True), keepAliveCounter]));
+  //FormDebug.Log(Format('[Spert] connection: %s [%d]', [BoolToStr(comportConnected, True), keepAliveCounter]));
 
   // ping every 1s to check is connection still alive
   if running and comportConnected then
@@ -272,7 +272,9 @@ begin
         comport.Flush;
         Sleep(500);
 
-      end;
+      end
+      else
+        FreeAndNil(comport);
     finally
        comportMutex.Release;
     end;

@@ -13,6 +13,7 @@
         <TextName Value=""/>
         <TextDesc Value=""/>
       </XPManifest>
+      <Icon Value="0"/>
       <Resources Count="2">
         <Resource_0 FileName="ball_blue_icon.bmp" Type="BITMAP" ResourceName="BALL_BLUE_ICON"/>
         <Resource_1 FileName="ball_green_icon.bmp" Type="BITMAP" ResourceName="BALL_GREEN_ICON"/>
@@ -22,7 +23,7 @@
       <UseVersionInfo Value="True"/>
       <AutoIncrementBuild Value="True"/>
       <RevisionNr Value="1"/>
-      <BuildNr Value="3"/>
+      <BuildNr Value="18"/>
     </VersionInfo>
     <BuildModes>
       <Item Name="Default" Default="True"/>
@@ -160,14 +161,14 @@
         <UnitName Value="UnitEventsInterface"/>
       </Unit>
       <Unit>
-        <Filename Value="unitrigft991.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="UnitRigFT991"/>
-      </Unit>
-      <Unit>
         <Filename Value="unitrigdummy.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="UnitRigDummy"/>
+      </Unit>
+      <Unit>
+        <Filename Value="unitrigft991a.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="UnitRigFT991A"/>
       </Unit>
     </Units>
   </ProjectOptions>
@@ -180,6 +181,10 @@
       <IncludeFiles Value="$(ProjOutDir)"/>
       <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
+    <CodeGeneration>
+      <TargetCPU Value="aarch64"/>
+      <TargetOS Value="darwin"/>
+    </CodeGeneration>
     <Linking>
       <Debugging>
         <DebugInfoType Value="dsDwarf3"/>
@@ -193,15 +198,6 @@
   </CompilerOptions>
   <Debugging>
     <Exceptions>
-      <Item>
-        <Name Value="EAbort"/>
-      </Item>
-      <Item>
-        <Name Value="ECodetoolError"/>
-      </Item>
-      <Item>
-        <Name Value="EFOpenError"/>
-      </Item>
       <Item>
         <Name Value="EIdConnClosedGracefully"/>
       </Item>

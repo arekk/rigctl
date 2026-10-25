@@ -1,16 +1,16 @@
 object FormDebug: TFormDebug
-  Left = 734
+  Left = 460
   Height = 529
-  Top = 175
+  Top = 465
   Width = 524
   Caption = 'Debug'
   ClientHeight = 529
   ClientWidth = 524
+  LCLVersion = '4.6.0.0'
   OnClose = FormClose
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   OnShow = FormShow
-  LCLVersion = '3.7.0.0'
   object Memo1: TMemo
     Left = 0
     Height = 495

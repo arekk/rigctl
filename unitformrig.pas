@@ -26,11 +26,13 @@ uses
   UnitRigDummy,
   UnitRigFTdx10,
   UnitRigFT991A,
+  UnitEvents,
   UnitFormDebug;
 
 type
   { TFormRig }
   TFormRig = class(TForm)
+    BitBtnPortGainAuto: TBitBtn;
     BitBtnSplit: TBitBtn;
     BitBtnSplitPlus: TBitBtn;
     BitBtnSplitMinus: TBitBtn;
@@ -42,8 +44,6 @@ type
     Button10: TButton;
     Button11: TButton;
     Button12: TButton;
-    Button13: TButton;
-    Button14: TButton;
     Button2: TButton;
     Button3: TButton;
     Button4: TButton;
@@ -68,6 +68,7 @@ type
     StatusBar1: TStatusBar;
     TrackBarPwr: TTrackBar;
     TrackBarDgain: TTrackBar;
+    procedure BitBtnPortGainAutoClick(Sender: TObject);
     procedure BitBtnSplitClick(Sender: TObject);
     procedure BitBtnSplitMinusClick(Sender: TObject);
     procedure BitBtnSplitPlusClick(Sender: TObject);
@@ -78,8 +79,6 @@ type
     procedure Button10Click(Sender: TObject);
     procedure Button11Click(Sender: TObject);
     procedure Button12Click(Sender: TObject);
-    procedure Button13Click(Sender: TObject);
-    procedure Button14Click(Sender: TObject);
     procedure Button1Click(Sender: TObject);
     procedure Button2Click(Sender: TObject);
     procedure Button3Click(Sender: TObject);
@@ -149,6 +148,7 @@ begin
   BitBtnVOX.Glyph.Assign(picBallBlue);
   BitBtnSplit.Glyph.Assign(picBallBlue);
   BitBtnTXW.Glyph.Assign(picBallBlue);
+  BitBtnPortGainAuto.Glyph.Assign(picBallBlue);
 
   Rig.Start;
   FlRigServer.Start;
@@ -254,11 +254,23 @@ begin
     end;
 
     // RPORT Gain aka DIGITAL Gain
-    if Rig.getDrPortGain <> TrackBarDgain.Position  then begin
-      TrackBarDgain.Enabled:=False;
-      TrackBarDgain.Position:=Rig.getDrPortGain;
-      TrackBarDgain.Enabled:=True;
-      LabelDgain.Caption:='Digital gain ' + IntToStr(Rig.getDrPortGain);
+    if Rig.getModeCategory = UnitRig.RigModeCategory_DATA then
+    begin
+      if Rig.getDrPortGain <> TrackBarDgain.Position then begin
+        TrackBarDgain.Enabled := False;
+        TrackBarDgain.Position := Rig.getDrPortGain;
+        LabelDgain.Caption := 'Digital gain ' + IntToStr(Rig.getDrPortGain);
+      end;
+      { When BitBtnPortGainAuto is engaged (Tag=1) the auto-mechanism in UnitEvents
+        owns the gain — disable manual controls so the user doesn't fight it. The
+        button itself stays enabled so the user can always toggle the mode off. }
+      LabelDgain.Enabled := BitBtnPortGainAuto.Tag = 0;
+      TrackBarDgain.Enabled := LabelDgain.Enabled;
+      BitBtnPortGainAuto.Enabled := Rig.isActive;
+    end else begin
+      LabelDgain.Enabled := False;
+      TrackBarDgain.Enabled := False;
+      BitBtnPortGainAuto.Enabled := False;
     end;
 
     { RX }
@@ -348,12 +360,15 @@ begin
       VK_8: TrackBarPwr.Position:=80;
       VK_9: TrackBarPwr.Position:=90;
       VK_0: TrackBarPwr.Position:=100;
+
       VK_RIGHT: if (TrackBarPwr.Position < 100) then TrackBarPwr.Position:=TrackBarPwr.Position + 1;
       VK_LEFT: if (TrackBarPwr.Position > 5) then  TrackBarPwr.Position:=TrackBarPwr.Position - 1;
-
-      VK_UP: if (TrackBarDgain.Position < 100) then TrackBarDgain.Position:=TrackBarDgain.Position + 5;
-      VK_DOWN: if (TrackBarDgain.Position > 0) then TrackBarDgain.Position:=TrackBarDgain.Position - 5;
+      VK_UP: if (TrackBarDgain.Position < 100) then TrackBarDgain.Position:=TrackBarDgain.Position + 1;
+      VK_DOWN: if (TrackBarDgain.Position > 0) then TrackBarDgain.Position:=TrackBarDgain.Position - 1;
+    else
+      Exit; // unhandled key — let LCL propagate it normally
     end;
+    Key := 0; // mark as handled to suppress macOS Cocoa system beep
   end;
 end;
 
@@ -365,16 +380,6 @@ end;
 procedure TFormRig.Button12Click(Sender: TObject);
 begin
  if Rig.isActive then Rig.SetPwr(25);
-end;
-
-procedure TFormRig.Button13Click(Sender: TObject);
-begin
-  if Rig.isActive then Rig.SetdrPortGain(30);
-end;
-
-procedure TFormRig.Button14Click(Sender: TObject);
-begin
-  if Rig.isActive then Rig.SetdrPortGain(50);
 end;
 
 procedure TFormRig.TrackBarPwrChange(Sender: TObject);
@@ -418,6 +423,22 @@ begin
       Rig.SetVfoB_frq(Rig.getVfoA_frq + 5000);
       Rig.SetSplit(True);
     end;
+  end;
+end;
+
+procedure TFormRig.BitBtnPortGainAutoClick(Sender: TObject);
+begin
+  if BitBtnPortGainAuto.Tag = 0 then begin
+    BitBtnPortGainAuto.Glyph.Assign(picBallGreen);
+    BitBtnPortGainAuto.Tag := 1;
+    { Engaging auto — drop PortGain to the ramp starting point so the next
+      TxStart begins convergence from a known low value. Same baseline as
+      what RigEventBandChange uses in unitevents.pas. Disengaging leaves the
+      gain alone so the user keeps the last converged value. }
+    if Rig.isActive then Rig.SetdrPortGain(UnitEvents.GAIN_RAMP_START);
+  end else begin
+    BitBtnPortGainAuto.Glyph.Assign(picBallBlue);
+    BitBtnPortGainAuto.Tag := 0;
   end;
 end;
 
@@ -527,4 +548,3 @@ begin
 end;
 
 end.
-

@@ -25,12 +25,16 @@ type
     CheckBox1: TCheckBox;
     CheckBox2: TCheckBox;
     CheckBox3: TCheckBox;
+    CheckBox4: TCheckBox;
     CheckBox5: TCheckBox;
+    CheckBox6: TCheckBox;
     ComboBox1: TComboBox;
     ComboBox2: TComboBox;
     ComboBox3: TComboBox;
     ComboBox4: TComboBox;
     ComboBox5: TComboBox;
+    ComboBox6: TComboBox;
+    ComboBox7: TComboBox;
     GroupBox1: TGroupBox;
     GroupBox2: TGroupBox;
     GroupBox3: TGroupBox;
@@ -43,10 +47,19 @@ type
     Label6: TLabel;
     Label7: TLabel;
     Label8: TLabel;
+    Label9: TLabel;
+    Label10: TLabel;
+    Label11: TLabel;
+    Label12: TLabel;
+    Label13: TLabel;
     Panel1: TPanel;
     SpinEdit1: TSpinEdit;
     SpinEdit2: TSpinEdit;
     SpinEdit3: TSpinEdit;
+    SpinEdit4: TSpinEdit;
+    SpinEdit5: TSpinEdit;
+    SpinEdit6: TSpinEdit;
+    SpinEdit7: TSpinEdit;
     procedure ButtonSaveClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormShow(Sender: TObject);
@@ -138,6 +151,20 @@ begin
   CheckBox5.Checked:=Configuration.Settings.AtuOffOnBandChange;
   SpinEdit2.Value:=Configuration.Settings.TrxTunePower;
   SpinEdit3.Value:=Configuration.Settings.spertLockOnSwr;
+
+  { Mode-category dropdowns are populated from the LFM's Items.Strings.
+    IndexOf returns -1 if the stored value isn't one of PHONO/DATA/CW (e.g. legacy
+    free-text "usb" from before this change) — in that case ItemIndex stays at -1
+    (blank selection) and the user must pick a category to make the macro fire. }
+  CheckBox4.Checked:=Configuration.Settings.macroModeA;
+  ComboBox6.ItemIndex:=ComboBox6.Items.IndexOf(Configuration.Settings.macroModeAMod);
+  SpinEdit4.Value:=Configuration.Settings.macroModeATrxPwr;
+  SpinEdit5.Value:=Configuration.Settings.macroModeASpertPwr;
+
+  CheckBox6.Checked:=Configuration.Settings.macroModeB;
+  ComboBox7.ItemIndex:=ComboBox7.Items.IndexOf(Configuration.Settings.macroModeBMod);
+  SpinEdit6.Value:=Configuration.Settings.macroModeBTrxPwr;
+  SpinEdit7.Value:=Configuration.Settings.macroModeBSpertPwr;
 end;
 
 procedure TFormSettings.ButtonSaveClick(Sender: TObject);
@@ -176,12 +203,24 @@ begin
   Configuration.Settings.TrxTunePower:=SpinEdit2.Value;
   Configuration.Settings.spertLockOnSwr:=SpinEdit3.Value;
 
+  Configuration.Settings.macroModeA:=CheckBox4.Checked;
+  if ComboBox6.ItemIndex >= 0
+    then Configuration.Settings.macroModeAMod:=ComboBox6.Items[ComboBox6.ItemIndex]
+    else Configuration.Settings.macroModeAMod:='';
+  Configuration.Settings.macroModeATrxPwr:=SpinEdit4.Value;
+  Configuration.Settings.macroModeASpertPwr:=SpinEdit5.Value;
+
+  Configuration.Settings.macroModeB:=CheckBox6.Checked;
+  if ComboBox7.ItemIndex >= 0
+    then Configuration.Settings.macroModeBMod:=ComboBox7.Items[ComboBox7.ItemIndex]
+    else Configuration.Settings.macroModeBMod:='';
+  Configuration.Settings.macroModeBTrxPwr:=SpinEdit6.Value;
+  Configuration.Settings.macroModeBSpertPwr:=SpinEdit7.Value;
+
   // save configuration
   Configuration.Save;
   Close;
 end;
-
-
 
 end.
 

@@ -8,8 +8,10 @@ uses
   Classes,
   SysUtils,
   StrUtils,
+  Forms,
   LazSynaser,
   Cthreads,
+  BaseUnix,
   UnitFormDebug;
 
 type
@@ -53,6 +55,7 @@ type
       fAutoDiscoverThreads: Array of TSerialPortDiscoverThread;
     public
       constructor Create(LockFilesDirectory: String);
+      destructor Destroy; override;
       procedure CleanLockFiles;
       function LockPort(port: String):String;
       function Discover(params: TSerialPortDiscoverParams): Integer;
@@ -61,7 +64,9 @@ type
       property OnFinish: TNotifyEvent read fOnFinish write fOnFinish;
     private
       function LockFile(port: String):String;
+      function tryCreateLockFile(port: String):String;
       procedure onAutoDiscoverThreadTerminate(Sender: TObject);
+      procedure deferredCleanup(data: PtrInt);
   end;
 
 implementation
@@ -115,23 +120,44 @@ begin
   Result:=lf;
 end;
 
+{ Atomic exclusive create: only one caller per port can succeed.
+  Used by Discover so parallel SPert+Rig probes never spawn threads on the same /dev/tty.X. }
+function TSerialPortDiscover.tryCreateLockFile(port: String):String;
+var
+  lf: String;
+  fd: LongInt;
+begin
+  Result:='';
+  lf:=LockFile(port);
+  fd:=fpOpen(lf, O_CREAT or O_EXCL or O_WRONLY, &644);
+  if fd >= 0 then
+  begin
+    fpClose(fd);
+    Result:=lf;
+  end;
+end;
+
 function TSerialPortDiscover.Discover(params: TSerialPortDiscoverParams): Integer;
 var
   searchResult: TSearchRec;
   lf: String;
   i: Integer = 0;
 begin
+  Result:=0;
   {$IFDEF DARWIN}
   if FindFirst('/dev/tty.*', faAnyFile, searchResult) = 0 then begin repeat
     begin
-      lf:=LockFile(searchResult.Name);
-      if not FileExists(lf) and (searchResult.Name <> 'tty.Bluetooth-Incoming-Port') and (searchResult.Name <> 'tty.wlan-debug') and (searchResult.Name <> 'tty.debug-console') then
+      if (searchResult.Name <> 'tty.Bluetooth-Incoming-Port') and (searchResult.Name <> 'tty.wlan-debug') and (searchResult.Name <> 'tty.debug-console') then
       begin
-        SetLength(fAutoDiscoverThreads, i + 1);
-        fAutoDiscoverThreads[i]:=TSerialPortDiscoverThread.Create(('/dev/' + searchResult.Name), params, lf);
-        fAutoDiscoverThreads[i].OnTerminate:=@onAutoDiscoverThreadTerminate;
-        fAutoDiscoverThreads[i].Start;
-        Inc(i);
+        lf:=tryCreateLockFile(searchResult.Name);
+        if lf <> '' then
+        begin
+          SetLength(fAutoDiscoverThreads, i + 1);
+          fAutoDiscoverThreads[i]:=TSerialPortDiscoverThread.Create(('/dev/' + searchResult.Name), params, lf);
+          fAutoDiscoverThreads[i].OnTerminate:=@onAutoDiscoverThreadTerminate;
+          fAutoDiscoverThreads[i].Start;
+          Inc(i);
+        end;
       end;
     end
       until FindNext(searchResult) <> 0;
@@ -156,18 +182,41 @@ begin
   if (TSerialPortDiscoverThread(Sender).Result = 1) and Assigned(OnSuccess) then
   begin
     result:=TSerialPortDiscoverResult.Create;
-    result.Port:=TSerialPortDiscoverThread(Sender).Port;
-    result.LockFile:=TSerialPortDiscoverThread(Sender).LockFile;
-    OnSuccess(result);
+    try
+      result.Port:=TSerialPortDiscoverThread(Sender).Port;
+      result.LockFile:=TSerialPortDiscoverThread(Sender).LockFile;
+      OnSuccess(result);
+    finally
+      result.Free;
+    end;
   end;
 
   for thread in fAutoDiscoverThreads do
     if thread.Result >= 0 then Inc(cnt);
 
-  if Length(fAutoDiscoverThreads) = cnt then begin
-    SetLength(fAutoDiscoverThreads, 0);
-    if Assigned(OnFinish) then OnFinish(nil);
-  end;
+  if Length(fAutoDiscoverThreads) = cnt then
+    { Defer the cleanup. Freeing the Sender thread from within its own OnTerminate
+      is a use-after-free: TThread.Destroy skips WaitFor because FFinished is True,
+      so the object is freed while the OS thread is still returning from Synchronize. }
+    Application.QueueAsyncCall(@deferredCleanup, 0);
+end;
+
+procedure TSerialPortDiscover.deferredCleanup(data: PtrInt);
+var
+  thread: TSerialPortDiscoverThread;
+begin
+  for thread in fAutoDiscoverThreads do
+    thread.Free;
+  SetLength(fAutoDiscoverThreads, 0);
+  if Assigned(OnFinish) then OnFinish(nil);
+end;
+
+destructor TSerialPortDiscover.Destroy;
+begin
+  { Drop any pending deferredCleanup queued from a Sender's OnTerminate —
+    it would otherwise fire after this instance is gone. }
+  Application.RemoveAsyncCalls(Self);
+  inherited;
 end;
 
 procedure TSerialPortDiscover.Terminate;
@@ -197,43 +246,39 @@ var
   comport: TBlockSerial;
   payload: String;
 begin
-  if not FileExists(fLockFile) then
+  comport:=TBlockSerial.Create;
+  comport.LinuxLock:=False;
+  comport.NonBlock:=True;
+  comport.Connect(fPort);
+  comport.Config(fParams.fPortRate, 8, 'N', SB1, False, True);
+  FormDebug.Log('[PortDiscoverThread] execute -> ' + fParams.fHandle + ' -> ' + fPort +  ' -> ' + comport.LastErrorDesc + ' code: ' + Inttostr(comport.LastError));
+  if comport.LastError = 0 then
   begin
-    FileCreate(fLockFile);
-    comport:=TBlockSerial.Create;
-    comport.LinuxLock:=False;
-    comport.NonBlock:=True;
-    comport.Connect(fPort);
-    comport.Config(fParams.fPortRate, 8, 'N', SB1, False, True);
-    FormDebug.Log('[PortDiscoverThread] execute -> ' + fParams.fHandle + ' -> ' + fPort +  ' -> ' + comport.LastErrorDesc + ' code: ' + Inttostr(comport.LastError));
+    if fParams.fDelay > 0
+      then Sleep(fParams.fDelay);
+
+    comport.SendString(fParams.fSend + fParams.fDelimiter + fParams.fSend + fParams.fDelimiter); // send the same command twice to close by proper delimiter command sent in other thread
+
     if comport.LastError = 0 then
     begin
       if fParams.fDelay > 0
         then Sleep(fParams.fDelay);
 
-      comport.SendString(fParams.fSend + fParams.fDelimiter + fParams.fSend + fParams.fDelimiter); // send the same command twice to close by proper delimiter command sent in other thread
+      payload:=Trim(AnsiToUtf8(comport.RecvTerminated(10, fParams.fDelimiter)));
+      while payload <> '' do begin
 
-      if comport.LastError = 0 then
-      begin
-        if fParams.fDelay > 0
-          then Sleep(fParams.fDelay);
+        FormDebug.Log('[PortDiscoverThread] payload -> ' + fParams.fHandle + ' -> ' + fPort + ' -> ' + payload);
 
-        payload:=Trim(AnsiToUtf8(comport.RecvTerminated(10, fParams.fDelimiter)));
-        while payload <> '' do begin
-
-          FormDebug.Log('[PortDiscoverThread] payload -> ' + fParams.fHandle + ' -> ' + fPort + ' -> ' + payload);
-
-          if ContainsText(payload, fParams.fExpect) then begin
-            FormDebug.Log('[PortDiscoverThread] won ' + fParams.fHandle + ' -> ' + fPort);
-            fResult:=1;
-          end;
-          payload:=Trim(AnsiToUtf8(comport.RecvTerminated(10, fParams.fDelimiter)));
+        if ContainsText(payload, fParams.fExpect) then begin
+          FormDebug.Log('[PortDiscoverThread] won ' + fParams.fHandle + ' -> ' + fPort);
+          fResult:=1;
         end;
+        payload:=Trim(AnsiToUtf8(comport.RecvTerminated(10, fParams.fDelimiter)));
       end;
     end;
-    comport.Free;
-    if fResult = -1 then DeleteFile(fLockFile); // not this port - delete lockfile
   end;
+  comport.Free;
+  if fResult = -1 then DeleteFile(fLockFile); // not this port - delete lockfile
 
   if fResult = -1 then fResult:=0;
 

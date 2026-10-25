@@ -8,6 +8,14 @@ uses
   Classes,
   UnitEventsInterface;
 
+const
+  { Canonical operating-mode categories used for cross-rig logic (e.g. macros).
+    Each rig driver maps its native mode names (LSB/USB/CW-L/DATA-U/RTTY-L/…)
+    to one of these. Empty string means "unknown / not mapped". }
+  RigModeCategory_PHONE = 'PHONE';
+  RigModeCategory_DATA  = 'DATA';
+  RigModeCategory_CW    = 'CW';
+
 type
   TRigVFO = (RigVFO_A, RigVFO_B);
 
@@ -57,6 +65,7 @@ type
     function getVfoB_mode:String;
     function getVfo:TRigVFO;
     function getMode:String;
+    function getModeCategory:String;
     function getFrq:Longword;
     function getBand:Byte;
     function getdrPortGain: Byte;

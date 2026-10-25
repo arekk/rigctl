@@ -186,8 +186,8 @@ begin
     helpKeboard.Add('Power +1W..................... ⌘+Right arrow');
     helpKeboard.Add('Power -1W..................... ⌘+Left arrow');
     helpKeboard.Add('Power 10,20,30................ ⌘+1,2,3');
-    helpKeboard.Add('DGain +5...................... ⌘+Up arrow');
-    helpKeboard.Add('DGain -5...................... ⌘+Down arrow');
+    helpKeboard.Add('DGain +1...................... ⌘+Up arrow');
+    helpKeboard.Add('DGain -1...................... ⌘+Down arrow');
     helpKeboard.Add('');
   end;
   if Configuration.Settings.spertEnabled then

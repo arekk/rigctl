@@ -139,6 +139,7 @@ type
       function getVfoB_mode:String;
       function getVfo: TRigVFO;
       function getMode:String;
+      function getModeCategory:String;
       function getFrq:Longword;
       function getBand:Byte;
       function getdrPortGain: Byte;
@@ -259,7 +260,7 @@ begin
     end;
   end;
 
-  FormDebug.Log(Format('[Rig] connection: %s [%d]', [BoolToStr(comportConnected, True), keepAliveCounter]));
+  //FormDebug.Log(Format('[Rig] connection: %s [%d]', [BoolToStr(comportConnected, True), keepAliveCounter]));
 
   if running and comportConnected then Inc(keepAliveCounter);
   if running and (keepAliveCounter > 5) then Disconnect;
@@ -301,7 +302,9 @@ begin
         timerRead.Interval:=configuration.Settings.trxPool;
         timerRead.OnTimer:=@onTimerRead;
         timerRead.Enabled:=True;
-      end;
+      end
+      else
+        FreeAndNil(comport);
     finally
       comportMutex.Release;
     end;
@@ -778,6 +781,19 @@ end;
 function TFTdx10rig.getMode:String;
 begin
   Result:=rigState.mode;
+end;
+
+{ Maps Yaesu CAT mode strings to the canonical cross-rig categories defined in UnitRig.
+  Inherits to TFT991Arig — both radios share the FTdx10 CAT mode vocabulary. }
+
+function TFTdx10rig.getModeCategory:String;
+begin
+  case rigState.mode of
+    'LSB', 'USB', 'FM', 'AM', 'FM-N', 'AM-N': Result:=RigModeCategory_PHONE;
+    'CW-U', 'CW-L': Result:=RigModeCategory_CW;
+    'RTTY-L', 'RTTY-U', 'DATA-L', 'DATA-U', 'DATA-FM', 'DATA-FM-N', 'PSK': Result:=RigModeCategory_DATA;
+    else Result:='';
+  end;
 end;
 
 function TFTdx10rig.getBand:Byte;

@@ -324,18 +324,17 @@ begin
           then PanelAtuSWR.Color:=clRed;
       end;
 
-      // PanelAtuLC if ATU is on use saved LC to prompt ATU re-tune, if ATU is off it's gray and shows nothing
+      { PanelAtuLC color reflects whether the live ATU L/C matches the value stored
+        for this frequency. Independent of current SWR — a good SWR with mismatched
+        L/C still means "ATU is not the tuned point we remember for this frequency".
+        Match → green, mismatch → red, no nearby sample → gray. }
       if Spert.isAtuActive and not Spert.isAtuTunning then
       begin
-        if (Swr = -1) or (Swr > MAX_GREEN_SWR) then
-          begin
-            case SpertDatabase.matchLC(FormRig.Rig.getFrq, 10000, Spert.getAtu_L, Spert.getAtu_C) of
-            SpertDatabaseLC_Unknown: PanelAtuLC.Color:=clGray;
-            SpertDatabaseLC_Match: PanelAtuLC.Color:=clGreen;
-            SpertDatabaseLC_NotMatch: PanelAtuLC.Color:=clRed;
-          end;
-        end
-          else PanelAtuLC.Color:=clGreen;
+        case SpertDatabase.matchLC(FormRig.Rig.getFrq, 10000, Spert.getAtu_L, Spert.getAtu_C) of
+          SpertDatabaseLC_Unknown: PanelAtuLC.Color:=clGray;
+          SpertDatabaseLC_Match: PanelAtuLC.Color:=clGreen;
+          SpertDatabaseLC_NotMatch: PanelAtuLC.Color:=clRed;
+        end;
 
         PanelAtuLC.Caption:=FloatToStr(Spert.getAtu_L) + 'μH ' + FloatToStr(Spert.getAtu_C) + 'pF';
       end
@@ -417,8 +416,16 @@ begin
   {$ENDIF}
 
   if (ssCmd in Shift) then begin
-    if Spert.isActive and not Spert.txActive and BitBtnAtu.Enabled and (Key = VK_A) then BitBtnAtuClick(Sender);
-    if Spert.isActive and not Spert.txActive and ButtonAtuTune.Enabled and (Key = VK_T) then ButtonAtuTuneClick(Sender);
+    if Spert.isActive and
+       not Spert.txActive and
+       BitBtnAtu.Enabled and
+       (Key = VK_A) then BitBtnAtuClick(Sender);
+
+    if Spert.isActive and
+       not Spert.txActive and
+       ButtonAtuTune.Enabled and
+       (Key = VK_T) then ButtonAtuTuneClick(Sender);
+
     if Spert.isActive and not Spert.txActive and TrackBar1.Enabled then
     begin
       case Key of
@@ -433,6 +440,14 @@ begin
         VK_9: TrackBar1.Position:=90;
         VK_0: TrackBar1.Position:=100;
       end;
+    end;
+
+    { Suppress macOS Cocoa system beep for any of our Cmd shortcuts, even when
+      the action couldn't fire (e.g. Spert offline) — the user explicitly used
+      our shortcut, so we own the keystroke. Other Cmd+key combos pass through. }
+    case Key of
+      VK_A, VK_T,
+      VK_1, VK_2, VK_3, VK_4, VK_5, VK_6, VK_7, VK_8, VK_9, VK_0: Key := 0;
     end;
   end;
 end;
@@ -510,7 +525,11 @@ end;
 
 procedure TFormSpert.TrackBar1Change(Sender: TObject);
 begin
-  if Spert.isActive and not Spert.txActive and TrackBar1.Enabled and (TrackBar1.Position >= 0) and (TrackBar1.Position <= 100) then Spert.setPower(TrackBar1.Position);
+  if Spert.isActive and
+     not Spert.txActive and
+     TrackBar1.Enabled and
+     (TrackBar1.Position >= 0) and
+     (TrackBar1.Position <= 100) then Spert.setPower(TrackBar1.Position);
 end;
 
 { helpers }

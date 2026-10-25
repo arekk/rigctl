@@ -8,6 +8,7 @@ uses
   Classes,
   SysUtils,
   StrUtils,
+  Forms,
   IdGlobal,
   IdSocketHandle,
   IdCustomHTTPServer,
@@ -29,6 +30,15 @@ type
     private
       procedure CommandGet(AContext: TIdContext; ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo);
       function HandleRequest(inputXML: String): String;
+      { Deferred mutators — marshal Rig.SetXXX calls from the Indy worker thread
+        to the main UI thread (where the rig's polling timer runs), so that all
+        access to rigState/ignorePayload happens on a single thread. }
+      procedure deferredSetVfoA(data: PtrInt);
+      procedure deferredSetVfoB(data: PtrInt);
+      procedure deferredSetSplit(data: PtrInt);
+      procedure deferredSetMode(data: PtrInt);
+      procedure deferredSetPtt(data: PtrInt);
+      procedure deferredPlayMessage(data: PtrInt);
     private
       Rig: TRig;
       Server: TIdHTTPServer;
@@ -38,7 +48,7 @@ type
       const XML_STR_REPLY   ='<?xml version="1.0"?><methodResponse><params><param><value>%s</value></param></params></methodResponse>';
       const XML_INT_REPLY   ='<?xml version="1.0"?><methodResponse><params><param><value><i4>%d</i4></value></param></params></methodResponse>';
       const XML_MODES_REPLY ='<?xml version="1.0"?><methodResponse><params><param><value><array><data><value>LSB</value><value>USB</value><value>CW-U</value><value>FM</value><value>AM</value><value>RTTY-L</value><value>CW-L</value><value>DATA-L</value><value>RTTY-U</value><value>DATA-FM</value><value>FM-N</value><value>DATA-U</value><value>AM-N</value><value>PSK</value><value>DATA-FMN</value></data></array></value></param></params></methodResponse>';
-      const XML_BW_REPLY    ='<?xml version="1.0"?><methodResponse><params><param><value><array><data><value>3000</value><value></value></data></array></value></param></params></methodResponse></methodResponse>';
+      const XML_BW_REPLY    ='<?xml version="1.0"?><methodResponse><params><param><value><array><data><value>3000</value><value></value></data></array></value></param></params></methodResponse>';
       const XML_FAULT_REPLY ='<?xml version="1.0"?><methodResponse><fault><value><struct><member><name>faultCode</name><value><i4>-1</i4></value></member><member><name>faultString</name><value>%s</value></member></struct></value></fault></methodResponse>';
   end;
 
@@ -89,7 +99,6 @@ var
   Stream: TStream;
   Output: String;
 begin
-  AResponseInfo.ContentEncoding:='UTF-8';
   AResponseInfo.CharSet:='UTF-8';
 
   if (ARequestInfo.Command = 'POST') then
@@ -119,16 +128,23 @@ var
   xmlStr: String;
   xmlDoc: TXMLDocument;
   xmlNode: TDOMNode;
+  xmlStream: TStringStream;
   command: String;
   CurrentOutput: String;
+  modeStr: PString;
 begin
+  xmlDoc:=nil;
+  xmlNode:=nil;
+  xmlStream:=nil;
   try
-    xmlStr:=ReplaceText(inputXML, '<?clientid="hamlib', '<?client id="hamlib'); // fix for malformed XML from WSJT-X (via hamlib)
-    ReadXMLFile(xmlDoc, TStringStream.Create(xmlStr));
-    xmlNode:=xmlDoc.DocumentElement.FirstChild;
-  except
-     on E: Exception do FormDebug.Log('[FlrigServer] xml exception - ' + E.Message + ' - XML was: ' + xmlStr);
-  end;
+    try
+      xmlStr:=ReplaceText(inputXML, '<?clientid="hamlib', '<?client id="hamlib'); // fix for malformed XML from WSJT-X (via hamlib)
+      xmlStream:=TStringStream.Create(xmlStr);
+      ReadXMLFile(xmlDoc, xmlStream);
+      xmlNode:=xmlDoc.DocumentElement.FirstChild;
+    except
+       on E: Exception do FormDebug.Log('[FlrigServer] xml exception - ' + E.Message + ' - XML was: ' + xmlStr);
+    end;
 
   if Assigned(xmlNode) then
   begin
@@ -178,38 +194,50 @@ begin
 
         'rig.set_vfoA': begin
           xmlNode := xmlNode.NextSibling;
-          if Assigned(xmlNode) then Rig.SetVfoA_frq(StrToInt(Copy2Symb(xmlNode.TextContent, '.'))); // 28_616_781.250000 -> 28_616_781 (part after period is not important)
+          if Assigned(xmlNode) then
+            // 28_616_781.250000 -> 28_616_781 (part after period is not important)
+            Application.QueueAsyncCall(@deferredSetVfoA, PtrInt(StrToInt(Copy2Symb(xmlNode.TextContent, '.'))));
           CurrentOutput:=XML_CMD_REPLY;
         end;
 
         'rig.set_vfoB': begin
           xmlNode := xmlNode.NextSibling;
-          if Assigned(xmlNode) then Rig.SetVfoB_frq(StrToInt(Copy2Symb(xmlNode.TextContent, '.')));
+          if Assigned(xmlNode) then
+            Application.QueueAsyncCall(@deferredSetVfoB, PtrInt(StrToInt(Copy2Symb(xmlNode.TextContent, '.'))));
           CurrentOutput:=XML_CMD_REPLY;
         end;
 
         'rig.set_split': begin
            xmlNode := xmlNode.NextSibling;
-           if Assigned(xmlNode) then Rig.SetSplit((xmlNode.TextContent = '1'));
+           if Assigned(xmlNode) then
+             Application.QueueAsyncCall(@deferredSetSplit, PtrInt(Ord(xmlNode.TextContent = '1')));
            CurrentOutput:=XML_CMD_REPLY
         end;
 
         'rig.set_mode': begin
            xmlNode := xmlNode.NextSibling;
-           if Assigned(xmlNode) then Rig.SetCurrentVFOMode(xmlNode.TextContent);
+           if Assigned(xmlNode) then
+           begin
+             { String passed via heap-allocated PString; deferredSetMode disposes it. }
+             New(modeStr);
+             modeStr^ := xmlNode.TextContent;
+             Application.QueueAsyncCall(@deferredSetMode, PtrInt(modeStr));
+           end;
            CurrentOutput:=XML_CMD_REPLY
         end;
 
         'rig.set_ptt': begin
            xmlNode := xmlNode.NextSibling;
-           if Assigned(xmlNode) then Rig.SetPtt((xmlNode.TextContent = '1'));
+           if Assigned(xmlNode) then
+             Application.QueueAsyncCall(@deferredSetPtt, PtrInt(Ord(xmlNode.TextContent = '1')));
            CurrentOutput:=XML_CMD_REPLY
         end;
 
         // non-standard method
         'rig.play_message': begin
            xmlNode := xmlNode.NextSibling;
-           if Assigned(xmlNode) then Rig.playMessage(StrToInt(xmlNode.TextContent));
+           if Assigned(xmlNode) then
+             Application.QueueAsyncCall(@deferredPlayMessage, PtrInt(StrToInt(xmlNode.TextContent)));
            CurrentOutput:=XML_CMD_REPLY
         end;
       end;
@@ -221,7 +249,11 @@ begin
     end;
   end;
 
-  Result:=CurrentOutput;
+    Result:=CurrentOutput;
+  finally
+    xmlDoc.Free;
+    xmlStream.Free;
+  end;
 end;
 
 procedure TFlrigServer.Stop;
@@ -232,9 +264,49 @@ end;
 
 destructor TFlrigServer.Destroy;
 begin
+  // Drop any pending deferred mutations queued from Indy worker threads — they
+  // would otherwise fire after this instance is gone.
+  Application.RemoveAsyncCalls(Self);
   FreeAndNil(Server);
-  FreeAndNil(Configuration);
+  // Configuration and Rig are borrowed references owned by TFormRig — do not free here.
   inherited;
+end;
+
+procedure TFlrigServer.deferredSetVfoA(data: PtrInt);
+begin
+  Rig.SetVfoA_frq(Longword(data));
+end;
+
+procedure TFlrigServer.deferredSetVfoB(data: PtrInt);
+begin
+  Rig.SetVfoB_frq(Longword(data));
+end;
+
+procedure TFlrigServer.deferredSetSplit(data: PtrInt);
+begin
+  Rig.SetSplit(data <> 0);
+end;
+
+procedure TFlrigServer.deferredSetMode(data: PtrInt);
+var
+  s: PString;
+begin
+  s := PString(data);
+  try
+    Rig.SetCurrentVFOMode(s^);
+  finally
+    Dispose(s);
+  end;
+end;
+
+procedure TFlrigServer.deferredSetPtt(data: PtrInt);
+begin
+  Rig.SetPtt(data <> 0);
+end;
+
+procedure TFlrigServer.deferredPlayMessage(data: PtrInt);
+begin
+  Rig.playMessage(Byte(data));
 end;
 
 end.

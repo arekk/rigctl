@@ -1,18 +1,18 @@
 object FormSpert: TFormSpert
-  Left = 717
+  Left = 319
   Height = 290
-  Top = 177
+  Top = 534
   Width = 281
   BorderStyle = bsSingle
   Caption = 'SPert 1000'
   ClientHeight = 290
   ClientWidth = 281
   KeyPreview = True
+  LCLVersion = '4.6.0.0'
   OnClose = FormClose
   OnCreate = FormCreate
   OnKeyDown = FormKeyDown
   OnShow = FormShow
-  LCLVersion = '3.7.0.0'
   object GroupBox2: TGroupBox
     Left = 2
     Height = 58
@@ -61,8 +61,8 @@ object FormSpert: TFormSpert
       Top = -3
       Width = 62
       Caption = 'ATU'
-      OnClick = BitBtnAtuClick
       TabOrder = 2
+      OnClick = BitBtnAtuClick
     end
     object ButtonAtuTune: TBitBtn
       Left = 202
@@ -70,8 +70,8 @@ object FormSpert: TFormSpert
       Top = -3
       Width = 62
       Caption = 'Tune'
-      OnClick = ButtonAtuTuneClick
       TabOrder = 3
+      OnClick = ButtonAtuTuneClick
     end
   end
   object GroupBox3: TGroupBox
@@ -261,12 +261,12 @@ object FormSpert: TFormSpert
       Width = 176
       AutoSize = True
       Max = 100
-      OnChange = TrackBar1Change
       PageSize = 10
       Position = 0
+      OnChange = TrackBar1Change
+      TabOrder = 0
       OnMouseEnter = TrackBar1MouseEnter
       OnMouseLeave = TrackBar1MouseLeave
-      TabOrder = 0
     end
     object Label1: TLabel
       Left = 0
@@ -317,8 +317,8 @@ object FormSpert: TFormSpert
       Top = 25
       Width = 64
       Caption = 'QRO'
-      OnClick = BitBtnLockTxClick
       TabOrder = 5
+      OnClick = BitBtnLockTxClick
     end
   end
 end

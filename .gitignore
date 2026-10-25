@@ -36,3 +36,5 @@ rig.rb
 project1
 ppas.sh
 binaries/
+build/
+.claude

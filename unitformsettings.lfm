@@ -1,14 +1,14 @@
 object FormSettings: TFormSettings
-  Left = 652
-  Height = 516
-  Top = 241
+  Left = 741
+  Height = 540
+  Top = 723
   Width = 398
   Caption = 'Settings'
-  ClientHeight = 516
+  ClientHeight = 540
   ClientWidth = 398
+  LCLVersion = '4.6.0.0'
   OnCreate = FormCreate
   OnShow = FormShow
-  LCLVersion = '3.7.0.0'
   object GroupBox1: TGroupBox
     Left = 0
     Height = 55
@@ -33,7 +33,7 @@ object FormSettings: TFormSettings
   object Panel1: TPanel
     Left = 0
     Height = 48
-    Top = 468
+    Top = 492
     Width = 398
     Align = alBottom
     ClientHeight = 48
@@ -65,7 +65,7 @@ object FormSettings: TFormSettings
       Height = 20
       Top = 24
       Width = 280
-      ItemHeight = 19
+      ItemHeight = 18
       ReadOnly = True
       TabOrder = 0
     end
@@ -87,8 +87,8 @@ object FormSettings: TFormSettings
       Left = 96
       Height = 20
       Top = 56
-      Width = 108
-      ItemHeight = 19
+      Width = 280
+      ItemHeight = 18
       Items.Strings = (
         'Do not change'
         '50%'
@@ -110,13 +110,13 @@ object FormSettings: TFormSettings
   end
   object GroupBox3: TGroupBox
     Left = 0
-    Height = 133
+    Height = 132
     Top = 158
     Width = 398
     Align = alTop
     AutoSize = True
     Caption = 'TRX'
-    ClientHeight = 106
+    ClientHeight = 105
     ClientWidth = 388
     TabOrder = 3
     object Label3: TLabel
@@ -128,9 +128,10 @@ object FormSettings: TFormSettings
     end
     object ComboBox3: TComboBox
       Left = 96
-      Height = 20
+      Height = 19
       Top = 24
       Width = 280
+      AutoSize = False
       ItemHeight = 26
       ReadOnly = True
       Style = csDropDownList
@@ -152,17 +153,18 @@ object FormSettings: TFormSettings
       Caption = 'FLRIG server port'
     end
     object SpinEdit1: TSpinEdit
-      Left = 272
-      Height = 21
+      Left = 288
+      Height = 20
       Top = 85
-      Width = 86
+      Width = 80
       TabOrder = 2
     end
     object ComboBox4: TComboBox
       Left = 96
-      Height = 18
+      Height = 19
       Top = 0
-      Width = 143
+      Width = 280
+      AutoSize = False
       ItemHeight = 26
       ReadOnly = True
       Style = csDropDownList
@@ -177,9 +179,10 @@ object FormSettings: TFormSettings
     end
     object ComboBox5: TComboBox
       Left = 96
-      Height = 18
+      Height = 19
       Top = 48
-      Width = 143
+      Width = 280
+      AutoSize = False
       ItemHeight = 26
       ReadOnly = True
       Style = csDropDownList
@@ -195,12 +198,12 @@ object FormSettings: TFormSettings
   end
   object GroupBox4: TGroupBox
     Left = 0
-    Height = 177
-    Top = 291
+    Height = 202
+    Top = 290
     Width = 398
     Align = alClient
     Caption = 'Macros'
-    ClientHeight = 150
+    ClientHeight = 175
     ClientWidth = 388
     TabOrder = 4
     object CheckBox5: TCheckBox
@@ -220,14 +223,14 @@ object FormSettings: TFormSettings
     end
     object SpinEdit2: TSpinEdit
       Left = 288
-      Height = 21
+      Height = 20
       Top = 19
       Width = 78
       TabOrder = 1
     end
     object SpinEdit3: TSpinEdit
       Left = 288
-      Height = 21
+      Height = 20
       Top = 47
       Width = 78
       TabOrder = 2
@@ -238,6 +241,119 @@ object FormSettings: TFormSettings
       Top = 48
       Width = 270
       Caption = 'Lock SPert when estimated SWR higher than'
+    end
+    object Label9: TLabel
+      Left = 0
+      Height = 16
+      Top = 78
+      Width = 263
+      Caption = 'On rig mode change set TRX / SPert power '
+    end
+    object CheckBox4: TCheckBox
+      Left = 0
+      Height = 18
+      Top = 102
+      Width = 70
+      Caption = 'Mode A'
+      TabOrder = 3
+    end
+    object ComboBox6: TComboBox
+      Left = 80
+      Height = 19
+      Top = 100
+      Width = 81
+      ItemHeight = 18
+      Items.Strings = (
+        'PHONE'
+        'DATA'
+        'CW'
+      )
+      ReadOnly = True
+      Style = csDropDownList
+      TabOrder = 4
+    end
+    object Label10: TLabel
+      Left = 165
+      Height = 16
+      Top = 104
+      Width = 25
+      Caption = 'TRX'
+    end
+    object SpinEdit4: TSpinEdit
+      Left = 193
+      Height = 20
+      Top = 100
+      Width = 65
+      MaxValue = 100
+      TabOrder = 5
+    end
+    object Label11: TLabel
+      Left = 262
+      Height = 16
+      Top = 104
+      Width = 33
+      Caption = 'SPert'
+    end
+    object SpinEdit5: TSpinEdit
+      Left = 296
+      Height = 20
+      Top = 100
+      Width = 65
+      MaxValue = 1000
+      TabOrder = 6
+    end
+    object CheckBox6: TCheckBox
+      Left = 0
+      Height = 18
+      Top = 130
+      Width = 70
+      Caption = 'Mode B'
+      TabOrder = 7
+    end
+    object ComboBox7: TComboBox
+      Left = 80
+      Height = 19
+      Top = 128
+      Width = 81
+      ItemHeight = 18
+      Items.Strings = (
+        'PHONE'
+        'DATA'
+        'CW'
+      )
+      ReadOnly = True
+      Style = csDropDownList
+      TabOrder = 8
+    end
+    object Label12: TLabel
+      Left = 165
+      Height = 16
+      Top = 132
+      Width = 25
+      Caption = 'TRX'
+    end
+    object SpinEdit6: TSpinEdit
+      Left = 193
+      Height = 20
+      Top = 128
+      Width = 65
+      MaxValue = 100
+      TabOrder = 9
+    end
+    object Label13: TLabel
+      Left = 262
+      Height = 16
+      Top = 132
+      Width = 33
+      Caption = 'SPert'
+    end
+    object SpinEdit7: TSpinEdit
+      Left = 296
+      Height = 20
+      Top = 128
+      Width = 65
+      MaxValue = 1000
+      TabOrder = 10
     end
   end
 end

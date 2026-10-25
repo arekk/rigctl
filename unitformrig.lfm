@@ -1,17 +1,17 @@
 object FormRig: TFormRig
-  Left = 500
+  Left = 605
   Height = 290
-  Top = 358
+  Top = 534
   Width = 331
   BorderStyle = bsSingle
   ClientHeight = 290
   ClientWidth = 331
   KeyPreview = True
+  LCLVersion = '4.6.0.0'
   OnClose = FormClose
   OnCreate = FormCreate
   OnKeyDown = FormKeyDown
   OnShow = FormShow
-  LCLVersion = '3.7.0.0'
   object GroupBox1: TGroupBox
     Left = 0
     Height = 100
@@ -82,12 +82,12 @@ object FormRig: TFormRig
       AutoSize = True
       Frequency = 10
       Max = 100
-      OnChange = TrackBarPwrChange
       PageSize = 1
       Position = 0
       ScalePos = trBottom
       ShowSelRange = False
       TickStyle = tsManual
+      OnChange = TrackBarPwrChange
       TabOrder = 2
     end
     object LabelPwr: TLabel
@@ -103,6 +103,7 @@ object FormRig: TFormRig
       Top = 32
       Width = 57
       Caption = 'Data gain'
+      Enabled = False
     end
     object TrackBarDgain: TTrackBar
       Left = 112
@@ -113,12 +114,13 @@ object FormRig: TFormRig
       Frequency = 10
       Max = 100
       Min = 5
-      OnChange = TrackBarDgainChange
       PageSize = 1
       Position = 5
       ScalePos = trBottom
       ShowSelRange = False
       TickStyle = tsManual
+      OnChange = TrackBarDgainChange
+      Enabled = False
       TabOrder = 5
     end
     object PanelSwr: TPanel
@@ -141,23 +143,15 @@ object FormRig: TFormRig
       TabOrder = 1
       TabStop = True
     end
-    object Button13: TButton
+    object BitBtnPortGainAuto: TBitBtn
       Left = 251
-      Height = 26
+      Height = 24
       Top = 40
-      Width = 35
-      Caption = '30'
+      Width = 69
+      Caption = 'AUTO'
+      GlyphShowMode = gsmAlways
       TabOrder = 6
-      OnClick = Button13Click
-    end
-    object Button14: TButton
-      Left = 288
-      Height = 26
-      Top = 40
-      Width = 35
-      Caption = '50'
-      TabOrder = 7
-      OnClick = Button14Click
+      OnClick = BitBtnPortGainAutoClick
     end
   end
   object GroupBox2: TGroupBox
@@ -267,8 +261,8 @@ object FormRig: TFormRig
       Top = 24
       Width = 62
       Caption = 'Split'
-      OnClick = BitBtnSplitClick
       TabOrder = 10
+      OnClick = BitBtnSplitClick
     end
     object BitBtnSplitPlus: TBitBtn
       Left = 224
@@ -276,8 +270,8 @@ object FormRig: TFormRig
       Top = 24
       Width = 32
       Caption = '+'
-      OnClick = BitBtnSplitPlusClick
       TabOrder = 11
+      OnClick = BitBtnSplitPlusClick
     end
     object BitBtnTXW: TBitBtn
       Left = 256
@@ -286,8 +280,8 @@ object FormRig: TFormRig
       Width = 62
       Caption = 'TXW'
       GlyphShowMode = gsmAlways
-      OnClick = BitBtnTXWClick
       TabOrder = 12
+      OnClick = BitBtnTXWClick
     end
     object BitBtnSplitMinus: TBitBtn
       Left = 192
@@ -295,8 +289,8 @@ object FormRig: TFormRig
       Top = 24
       Width = 32
       Caption = '-'
-      OnClick = BitBtnSplitMinusClick
       TabOrder = 13
+      OnClick = BitBtnSplitMinusClick
     end
   end
   object StatusBar1: TStatusBar
@@ -349,8 +343,8 @@ object FormRig: TFormRig
       Width = 64
       Caption = 'VOX'
       GlyphShowMode = gsmAlways
-      OnClick = BitBtnVOXClick
       TabOrder = 5
+      OnClick = BitBtnVOXClick
     end
     object BitBtnDNR: TBitBtn
       Left = 126
@@ -359,8 +353,8 @@ object FormRig: TFormRig
       Width = 64
       Caption = 'DNR'
       GlyphShowMode = gsmAlways
-      OnClick = BitBtnDNRClick
       TabOrder = 3
+      OnClick = BitBtnDNRClick
     end
     object BitBtnDNF: TBitBtn
       Left = 126
@@ -369,8 +363,8 @@ object FormRig: TFormRig
       Width = 64
       Caption = 'DNF'
       GlyphShowMode = gsmAlways
-      OnClick = BitBtnDNFClick
       TabOrder = 4
+      OnClick = BitBtnDNFClick
     end
     object PanelVfoFrq: TPanel
       Left = 0
